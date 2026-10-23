@@ -1,0 +1,2329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Codependent</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f2228">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --dot: #c9cdd4;
+    --panel: #ffffff;
+    --border: #d4d7dd;
+    --text: #1f2328;
+    --muted: #6a717c;
+    --accent: #2f6fde;
+    --tile: #ffffff;
+    --tile-done: #e7f3ea;
+    --green: #1f9d4c;
+    --red: #d6362f;
+    --error: #b42318;
+    --tip-bg: #24292f;
+    --tip-text: #ffffff;
+    --shadow: rgba(0,0,0,.08);
+    --gutter: #f0f1f3;
+    --tag: #5a7bb0;
+    --desc: #1f7a3c;
+    --select: rgba(47,111,222,.28);
+    --box: rgba(47,111,222,.07);
+    --box-border: rgba(47,111,222,.35);
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #15171b;
+    --dot: #2c3038;
+    --panel: #1f2228;
+    --border: #3a3f48;
+    --text: #e6e8eb;
+    --muted: #9aa1ac;
+    --accent: #5b8def;
+    --tile: #262a31;
+    --tile-done: #1e3427;
+    --green: #3fb950;
+    --red: #f85149;
+    --error: #ff7b72;
+    --tip-bg: #e6e8eb;
+    --tip-text: #15171b;
+    --shadow: rgba(0,0,0,.4);
+    --gutter: #1a1d22;
+    --tag: #7f9fd0;
+    --desc: #6cc485;
+    --select: rgba(91,141,239,.35);
+    --box: rgba(91,141,239,.09);
+    --box-border: rgba(91,141,239,.4);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---- Top bar ---- */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header label { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  header select { font: inherit; padding: 3px 6px; }
+  header > * { flex: none; white-space: nowrap; }
+  button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  button { font: inherit; color: var(--text); padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button[hidden] { display: none; }
+
+  main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .interface { position: relative; flex: 1 1 0; min-height: 0; }
+  header input[type=checkbox] { margin: 0; }
+  header label.disabled { opacity: .6; }
+
+  /* Divider between stacked interfaces (P3-4) */
+  #splitter {
+    flex: none;
+    height: 8px;
+    cursor: row-resize;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  #splitter::after {
+    content: "";
+    position: absolute; left: 50%; top: 2px;
+    width: 40px; height: 2px; margin-left: -20px;
+    border-top: 1px solid var(--muted); border-bottom: 1px solid var(--muted);
+    opacity: .6;
+  }
+  #splitter[hidden] { display: none; }
+  .interface[hidden] { display: none; }
+
+  /* ---- Tile interface ---- */
+  #tileView {
+    overflow: hidden;
+    cursor: grab;
+    background-color: var(--bg);
+    background-image: radial-gradient(var(--dot) var(--dot-r, 1px), transparent var(--dot-r, 1px));
+    background-size: 24px 24px;
+  }
+  #tileView.panning { cursor: grabbing; }
+  #world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  /* Arrows sit beneath the Tiles (P6-2); the dashed drag line stays on top */
+  #arrows, #dragSvg { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
+  #arrows { z-index: 0; }
+  #dragSvg { z-index: 4; }
+  /* Container box around a container and its contained Tiles (P6-1) */
+  #boxes { position: absolute; left: 0; top: 0; z-index: 0; }
+  .cbox {
+    position: absolute;
+    border: 1px solid var(--box-border);
+    background: var(--box);
+    border-radius: 12px;
+    pointer-events: none;
+  }
+  #arrows .to-child { stroke: var(--green); }
+  #arrows .from-parent { stroke: var(--red); }
+  #headGreen path { fill: var(--green); }
+  #headRed path { fill: var(--red); }
+  #dragLine { stroke-width: 2; stroke-dasharray: 6 4; }
+  #dragLine.parent { stroke: var(--red); }
+  #dragLine.child { stroke: var(--green); }
+
+  /* Selection box: Shift + drag on empty space (P5-5) */
+  #selBox {
+    position: absolute;
+    border: 1px dashed var(--accent);
+    background: var(--select);
+    pointer-events: none;
+    z-index: 6;
+  }
+  #selBox[hidden] { display: none; }
+
+  /* Link dots on the first selected Tile (P3-7, P3-8, P5-5) */
+  .dot {
+    position: absolute;
+    width: 16px; height: 16px;
+    margin: -8px 0 0 -8px;
+    border-radius: 50%;
+    border: 2px solid var(--panel);
+    box-shadow: 0 1px 3px var(--shadow);
+    cursor: crosshair;
+    z-index: 5;
+  }
+  .dot[hidden] { display: none; }
+  .dot.red { background: var(--red); }
+  .dot.green { background: var(--green); }
+  .tile.drop-target { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent); }
+  .tile {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--tile);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px var(--shadow);
+    cursor: move;
+    user-select: none;
+    z-index: 1;
+  }
+  .tile:hover { border-color: var(--accent); z-index: 2; }
+  .tile.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); z-index: 2; }
+  .tile.dragging { z-index: 3; }
+  .tile.done { background: var(--tile-done); }
+  .tile.done .name { text-decoration: line-through; color: var(--muted); }
+  .tile .body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .tile .name { overflow-wrap: anywhere; line-height: 1.3; }
+  .tile .desc { overflow-wrap: anywhere; white-space: pre-wrap; line-height: 1.3; font-size: 12px; color: var(--muted); }
+  .tile input[type=checkbox] { margin: 0; cursor: pointer; flex: none; }
+
+  #tooltip {
+    position: fixed;
+    max-width: 320px;
+    padding: 6px 9px;
+    background: var(--tip-bg);
+    color: var(--tip-text);
+    border-radius: 6px;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 100;
+  }
+  #tooltip[hidden] { display: none; }
+  #tooltip b { display: block; }
+  #tooltip span { display: block; white-space: pre-wrap; margin-top: 2px; }
+
+  #emptyHint {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    color: var(--muted); pointer-events: none; text-align: center;
+  }
+
+  /* ---- New / Edit form ---- */
+  #editForm {
+    position: absolute;
+    width: 300px;
+    padding: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px var(--shadow);
+    z-index: 50;
+    cursor: default;
+  }
+  #editForm[hidden] { display: none; }
+  #editForm h2 { font-size: 14px; margin: 0 0 8px; }
+  #editForm label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 3px; }
+  #editForm input[type=text], #editForm textarea {
+    width: 100%;
+    font: inherit;
+    color: var(--text);
+    background: var(--bg);
+    padding: 5px 7px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    resize: vertical;
+  }
+  #editForm textarea { min-height: 64px; }
+  #editForm .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-top: 10px; }
+  #editForm .checks label { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--text); font-size: 13px; }
+  #editForm .checks label.disabled { opacity: .5; }
+  #editForm .checks input { margin: 0; }
+  #editForm .errors { color: var(--error); font-size: 12px; margin: 8px 0 0; padding-left: 18px; }
+  #editForm .errors:empty { display: none; }
+  #editForm .buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+  #editForm .buttons .danger { margin-right: auto; color: var(--red); border-color: var(--red); }
+  #editForm .buttons .danger:hover { background: var(--red); color: #fff; }
+
+  /* ---- Text interface ---- */
+  #textView { display: flex; flex-direction: column; padding: 12px 16px; gap: 8px; }
+  #textView[hidden] { display: none; }
+  #editor {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--panel);
+  }
+  #editor:focus-within { border-color: var(--accent); }
+  #textView.file-over #editor { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent); }
+  #gutter, #highlight, #textField {
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-variant-ligatures: none;
+    letter-spacing: 0;
+    padding: 10px 0;
+    margin: 0;
+  }
+  #gutter {
+    flex: none;
+    min-width: 44px;
+    padding-left: 8px;
+    padding-right: 10px;
+    text-align: right;
+    color: var(--muted);
+    background: var(--gutter);
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+    user-select: none;
+    white-space: pre;
+  }
+  /* Live colouring: a coloured copy of the text drawn exactly behind a
+     see-through text box (P5-7) */
+  #editArea { position: relative; flex: 1; min-width: 0; }
+  #highlight, #textField {
+    position: absolute;
+    inset: 0;
+    padding-left: 10px;
+    padding-right: 10px;
+    tab-size: 4;
+    white-space: pre;
+    border: none;
+  }
+  #highlight { color: var(--text); overflow: hidden; pointer-events: none; }
+  #highlight .tag { color: var(--tag); }
+  #highlight .desc { color: var(--desc); }
+  #textField {
+    width: 100%;
+    height: 100%;
+    color: transparent;
+    caret-color: var(--text);
+    background: transparent;
+    outline: none;
+    resize: none;
+    overflow: auto;
+  }
+  #textField::selection { background: var(--select); color: transparent; }
+  #textBar { display: flex; align-items: center; gap: 8px; }
+  #textBar label { display: flex; align-items: center; gap: 6px; color: var(--muted); white-space: nowrap; }
+  #textBar label input { margin: 0; }
+  #textMessage { flex: 1; font-size: 13px; min-width: 0; }
+  /* ---- Buttons interface (P9-2) ---- */
+  #buttonsView { flex: none; display: flex; gap: 8px; padding: 8px 16px; background: var(--panel); border-top: 1px solid var(--border); }
+  .menu { position: relative; }
+  .menuList {
+    position: absolute; left: 0; bottom: calc(100% + 4px);
+    display: flex; flex-direction: column; gap: 4px; min-width: 100%;
+    padding: 6px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: 0 8px 24px var(--shadow); z-index: 60;
+  }
+  .menuList[hidden] { display: none; }
+  .menuList button { text-align: left; white-space: nowrap; }
+  #touchBar .spaced { margin-left: 14px; }
+  #touchBar button { min-width: 40px; font-size: 18px; line-height: 1; padding: 6px 8px; }
+  /* Lines of selected Tiles (P9-9) */
+  #highlight .sel { background: var(--select); border-radius: 3px; display: inline-block; min-width: 100%; }
+  /* Buttons for keys a phone keyboard doesn't have (P8-7, Q66) */
+  #touchBar { display: none; gap: 8px; }
+
+  /* ---- Help interface (P8-6) ---- */
+  #helpView {
+    flex: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 24px;
+    padding: 10px 16px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    overflow: auto;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  #helpView[hidden] { display: none; }
+  #helpView h3 { margin: 0 0 4px; font-size: 12px; color: var(--text); }
+  #helpView ul { margin: 0; padding-left: 16px; }
+  #helpView li { margin: 1px 0; }
+  #helpView kbd { font: 11px ui-monospace, SFMono-Regular, Consolas, monospace; padding: 0 3px; border: 1px solid var(--border); border-radius: 3px; background: var(--bg); color: var(--text); }
+  #helpView section[hidden] { display: none; }
+
+  /* ---- Touch screens and narrow screens (P8-7) ---- */
+  #tileView { touch-action: none; }
+  @media (pointer: coarse) {
+    .dot { width: 28px; height: 28px; margin: -14px 0 0 -14px; }
+    #touchBar { display: flex; }
+  }
+  @media (max-width: 700px) {
+    header { flex-wrap: wrap; row-gap: 6px; gap: 10px; padding: 6px 10px; }
+    #textView { padding: 8px 10px; }
+    #textBar { flex-wrap: wrap; }
+    #textMessage { order: -1; flex-basis: 100%; }
+    #helpView { grid-template-columns: 1fr; }
+    button { padding: 4px 9px; }
+    #textBar, #touchBar { gap: 6px; }
+  }
+  .interface { overflow: hidden; }
+  #textMessage.error { color: var(--error); }
+  #textMessage.ok { color: var(--green); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Codependent</h1>
+  <label id="showTileLabel"><input type="checkbox" id="showTile" checked> Show Tile</label>
+  <label id="showTextLabel"><input type="checkbox" id="showText" checked> Show Text</label>
+  <label><input type="checkbox" id="showHelp"> Show Help</label>
+  <label>Theme
+    <select id="themeSelect">
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+    </select>
+  </label>
+  <button type="button" id="autoPlaceBtn">Auto place</button>
+  <button type="button" id="selectModeBtn" aria-pressed="false" title="While on, taps add or remove tiles and dragging on empty space draws a selection box">Select</button>
+</header>
+
+<main>
+  <!-- Tile interface -->
+  <div id="tileView" class="interface">
+    <div id="world">
+      <div id="boxes"></div>
+      <div id="tiles"></div>
+      <div id="parentDot" class="dot red" hidden title="Drag onto a tile to make it a Parent (or stop it being one), or onto empty space for a new Parent"></div>
+      <div id="childDot" class="dot green" hidden title="Drag onto a tile to make it a Child (or stop it being one), or onto empty space for a new Child"></div>
+      <svg id="arrows">
+        <defs>
+          <marker id="headGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z"/>
+          </marker>
+          <marker id="headRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z"/>
+          </marker>
+        </defs>
+        <g id="arrowLayer"></g>
+      </svg>
+      <svg id="dragSvg"><line id="dragLine" visibility="hidden"></line></svg>
+    </div>
+    <div id="selBox" hidden></div>
+    <div id="emptyHint">Double-click anywhere to create your first task.</div>
+
+    <!-- New / Edit form: lives inside the canvas but is not affected by zoom -->
+    <form id="editForm" hidden autocomplete="off">
+      <h2 id="editTitle">Edit node</h2>
+      <label for="fName">Name</label>
+      <input id="fName" type="text">
+      <label for="fDescription">Description</label>
+      <textarea id="fDescription" rows="3"></textarea>
+      <div class="checks">
+        <label><input type="checkbox" id="fTickable"> Tickable</label>
+        <label id="fTickedLabel"><input type="checkbox" id="fTicked"> Ticked</label>
+        <label><input type="checkbox" id="fContainer"> Container</label>
+        <label><input type="checkbox" id="fContainable"> Containable</label>
+        <label><input type="checkbox" id="fHideChildren"> Hide children</label>
+        <label><input type="checkbox" id="fShowDescription"> Show description</label>
+      </div>
+      <ul class="errors" id="formErrors"></ul>
+      <div class="buttons">
+        <button type="button" id="deleteBtn" class="danger">Delete</button>
+        <button type="button" id="cancelBtn">Cancel (Esc)</button>
+        <button type="submit" class="primary">Save (Enter)</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="splitter" title="Drag to resize"></div>
+
+  <!-- Text interface -->
+  <div id="textView" class="interface">
+    <div id="touchBar">
+      <button type="button" id="outdentBtn" title="Outdent (Shift+Tab)">&#x21E4;</button>
+      <button type="button" id="indentBtn" title="Indent (Tab)">&#x21E5;</button>
+      <button type="button" id="deeperBtn" class="spaced" title="New deeper line (Shift+Enter)">&#x21B3;</button>
+      <button type="button" id="lineStartBtn" class="spaced" title="Start of line">&#x21A4;</button>
+      <button type="button" id="lineEndBtn" title="End of line">&#x21A6;</button>
+      <button type="button" id="textStartBtn" title="Start of text">&#x21F1;</button>
+      <button type="button" id="textEndBtn" title="End of text">&#x21F2;</button>
+    </div>
+    <div id="editor">
+      <pre id="gutter" aria-hidden="true">1</pre>
+      <div id="editArea">
+        <pre id="highlight" aria-hidden="true"></pre>
+        <textarea id="textField" spellcheck="false" wrap="off"></textarea>
+      </div>
+    </div>
+    <div id="textBar">
+      <span id="textMessage"></span>
+      <label title="Hide the &lt;…&gt; and […] tags on name lines (Ctrl+Space)"><input type="checkbox" id="hideTags"> Hide tags</label>
+      <button type="button" class="primary" id="updateBtn">Update</button>
+    </div>
+  </div>
+
+  <!-- Buttons interface: always shown (P9-2) -->
+  <div id="buttonsView">
+    <div class="menu">
+      <button type="button" class="menuBtn">Save as &#x25BE;</button>
+      <div class="menuList" hidden>
+        <button type="button" id="saveBtn">.txt</button>
+        <button type="button" id="saveHtmlBtn">.html</button>
+      </div>
+    </div>
+    <div class="menu">
+      <button type="button" class="menuBtn">Copy&#x2026; &#x25BE;</button>
+      <div class="menuList" hidden>
+        <button type="button" id="copyBtn">&#x2026;with tags</button>
+        <button type="button" id="copyPlainBtn">&#x2026;without tags</button>
+      </div>
+    </div>
+    <div class="menu">
+      <button type="button" class="menuBtn">Import .txt &#x25BE;</button>
+      <div class="menuList" hidden>
+        <button type="button" id="importAddBtn">Add text</button>
+        <button type="button" id="importReplaceBtn">Replace text</button>
+      </div>
+    </div>
+    <input type="file" id="openInput" accept=".txt,text/plain" hidden>
+  </div>
+
+  <!-- Help interface (P8-6) -->
+  <div id="helpView">
+    <section id="helpTile">
+      <h3>Tile interface</h3>
+      <ul>
+        <li>Drag empty space to move around · scroll wheel or pinch to zoom</li>
+        <li>Touch screens: tap a tile to select it, then drag it to move it; dragging an unselected tile moves the view</li>
+        <li>Double-click (double-tap) empty space for a new task, or a tile to edit it</li>
+        <li>Click a tile to select it · <kbd>Shift</kbd>+click, or turn on Select, to select several</li>
+        <li><kbd>Shift</kbd>+drag on empty space (or drag with Select on) for a selection box · <kbd>Esc</kbd> clears</li>
+        <li>Drag the red dot onto a tile to make it a Parent, the green dot to make it a Child; again to unlink</li>
+        <li>Drop a dot on empty space for a new linked task · hover or press and hold a tile for its description</li>
+        <li>Auto place lays out every tile, or just the selected ones · Delete in the edit form removes a task</li>
+      </ul>
+    </section>
+    <section id="helpText">
+      <h3>Text interface</h3>
+      <ul>
+        <li><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd> indent or outdent lines · indented = Child of the line above</li>
+        <li><kbd>Enter</kbd> keeps the indentation · <kbd>Shift</kbd>+<kbd>Enter</kbd> starts a deeper line</li>
+        <li><kbd>Ctrl</kbd>+<kbd>Enter</kbd> or Update rebuilds the tiles from the text</li>
+        <li><kbd>Ctrl</kbd>+<kbd>Space</kbd> or Hide tags hides the &lt;…&gt; and […] tags</li>
+        <li>Drop a .txt file to open it (<kbd>Shift</kbd> to add it below), or use Import .txt</li>
+        <li>Save as .txt saves the text · Save as .html saves a copy of this page that opens with your text · Copy… with or without tags</li>
+        <li>Descriptions are lines starting with <kbd>//</kbd> under a task</li>
+      </ul>
+    </section>
+  </div>
+</main>
+
+<div id="tooltip" hidden></div>
+
+<!-- Tutorial text shown when the page opens (P6-7) -->
+<script type="text/plain" id="tutorialText">
+Features to try <!?> <x:60> <y:60> <CC> <SD> {Click and drag on an empty area to move the camera} {Node Selection} {Double click empty space to create a new node} {Double click a node to edit it's properties} {Text Interface}
+// This node has a description. Descriptions are visible when mousing over a node, In the text view, and if a node has the "Show description" tag.
+// Descriptions can be spaced across multiple lines.
+// You can hide this one by double clicking this node and unchecking "Show description"
+	Click and drag on an empty area to move the camera <x:100> <y:124> [Features to try]
+	Node Selection <!?> <x:100> <y:206> [Features to try] {Click on a node to select it} {Shift + Click on a second node to select that too} {Shift + Click + Drag to select with bounding box} {Drag red dot onto another node to make other node a Parent} {Drag green dot onto empty area to create a new child}
+		Click on a node to select it <x:140> <y:270> [Node Selection]
+		Shift + Click on a second node to select that too <x:140> <y:352> [Node Selection]
+		Shift + Click + Drag to select with bounding box <x:140> <y:434> [Node Selection]
+		Drag red dot onto another node to make other node a Parent <x:140> <y:516> [Node Selection]
+		Drag green dot onto empty area to create a new child <x:140> <y:599> [Node Selection]
+	Double click empty space to create a new node <x:100> <y:681> [Features to try]
+	Double click a node to edit it's properties <x:100> <y:763> [Features to try]
+	Text Interface <!?> <x:100> <y:845> <CC> [Features to try] {Drag a .txt file into the Text Interface to open in Codependent} {Update (Ctrl + Enter) will generate/update the tile view based on the input text}
+		Drag a .txt file into the Text Interface to open in Codependent <x:140> <y:909> [Text Interface] {Shift + Drag a file to add it's contents to existing text}
+			Shift + Drag a file to add it's contents to existing text <x:180> <y:992> [Drag a .txt file into the Text Interface to open in Codependent]
+		Update (Ctrl + Enter) will generate/update the tile view based on the input text <x:140> <y:1074> <SD> [Text Interface]
+		// Update will automatically generate tags based on the input text. You can hide this text using the "Hide tags" checkbox at the bottom right of the Text Interface
+
+Hotkeys <!?> <x:60> <y:1226> {Ctrl + Enter to update from text} {Shift + Enter will make new indented line} {Tab to increase line indentation} {Shift + Tab to reduce line indentation} {Ctrl + Space to show/hide tags}
+	Ctrl + Enter to update from text <x:100> <y:1290> [Hotkeys]
+	Shift + Enter will make new indented line <x:100> <y:1372> [Hotkeys]
+	Tab to increase line indentation <x:100> <y:1454> [Hotkeys]
+	Shift + Tab to reduce line indentation <x:100> <y:1530> [Hotkeys]
+	Ctrl + Space to show/hide tags <x:100> <y:1612> [Hotkeys]
+</script>
+
+<script>
+"use strict";
+
+/* A copy of the page as it was loaded, before anything on it changes, used
+   by "Save as .html" (P7-1). Pages can't read their own file from disk. */
+const PAGE_SOURCE = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+
+/* =====================================================================
+   NodeData: the single collection of Nodes, shared by every interface.
+   Keyed by name, which is unique. Map keeps insertion order.
+   children = Nodes this one depends on (indented below it in the text).
+   parents  = Nodes that depend on this one.
+   ===================================================================== */
+const NodeData = new Map();
+
+/* Node fields (P5-1). containedTag and hiddenTag hold an explicit <C>, <H>
+   or <!H>; without one, IsContained and IsHidden are worked out from the
+   Parents (Q33 to Q35). */
+function makeNode(name) {
+  return {
+    name, description: "", x: null, y: null,
+    isTickable: true, isTicked: false,
+    isContainer: false, isContainable: true, containedTag: false,
+    hiddenTag: null, hideChildren: false, showDescription: false,
+    parents: [], children: []
+  };
+}
+
+function addUnique(list, item) {
+  if (!list.includes(item)) list.push(item);
+}
+
+/* IsContained: exactly one Parent that is a container or is itself
+   contained, unless <!C> says it can't be contained (Q33, Q34) */
+function containedByDefault(node, nodes = NodeData, seen = new Set()) {
+  if (node.parents.length !== 1 || seen.has(node.name)) return false;
+  seen.add(node.name);
+  const parent = nodes.get(node.parents[0]);
+  return !!parent && (parent.isContainer || isContained(parent, nodes, seen));
+}
+function isContained(node, nodes = NodeData, seen = new Set()) {
+  if (!node.isContainable) return false;
+  return node.containedTag || containedByDefault(node, nodes, seen);
+}
+
+/* IsHidden: true when it has Parents and all of them hide their Children,
+   unless <H> or <!H> says otherwise (Q35) */
+function hiddenByDefault(node, nodes = NodeData) {
+  return node.parents.length > 0 && node.parents.every(p => nodes.get(p)?.hideChildren);
+}
+function isHidden(node, nodes = NodeData) {
+  return node.hiddenTag ?? hiddenByDefault(node, nodes);
+}
+
+/* Name rules: things the text format would misread (Q42) */
+function nameProblem(name) {
+  if (!name) return "Name can't be empty.";
+  if (/[\r\n\t]/.test(name)) return `"${name}": names can't contain line breaks or tabs.`;
+  if (/[<>\[\]{}]/.test(name)) return `"${name}": names can't contain < > [ ] { or }.`;
+  if (name.startsWith("//")) return `"${name}": names can't start with "//".`;
+  return null;
+}
+
+/* Walks the Nodes as a tree: every Node with no Parents starts a tree, each
+   Node sits below its first Parent, and any Node left over (loops) starts a
+   new tree. No Node is visited twice (P2-13, Q21). */
+function treeOrder(nodes = NodeData) {
+  const out = [];
+  const seen = new Set();
+  const visit = (node, depth) => {
+    seen.add(node.name);
+    out.push({ node, depth });
+    for (const childName of node.children) {
+      const child = nodes.get(childName);
+      if (child && !seen.has(childName) && child.parents[0] === node.name) visit(child, depth + 1);
+    }
+  };
+  for (const node of nodes.values()) if (!node.parents.length && !seen.has(node.name)) visit(node, 0);
+  for (const node of nodes.values()) if (!seen.has(node.name)) visit(node, 0);
+  return out;
+}
+
+/* =====================================================================
+   Text format: serialise / deserialise.
+   Name line: Name <tag> <tag> [Parent] {Child}; descriptions are // lines.
+   ===================================================================== */
+
+// Tags that differ from the defaults, in a fixed order (P5-1, Q41).
+// withLinks false leaves out [Parents] (used by Hide tags). The Parent a
+// Node is indented under needs no tag; other Parents are written as
+// [Parent] on the Node's own line, and {Child} is never written (P8-5, Q63).
+function tagText(node, nodes, withLinks, indentParent) {
+  const t = [];
+  if (!node.isTickable) t.push("<!?>");
+  if (node.isTicked) t.push("<??>");
+  if (node.x !== null && node.y !== null) t.push(`<x:${Math.round(node.x)}>`, `<y:${Math.round(node.y)}>`);
+  if (node.isContainer) t.push("<CC>");
+  if (node.containedTag && !containedByDefault(node, nodes)) t.push("<C>");
+  if (!node.isContainable) t.push("<!C>");
+  if (node.hideChildren) t.push("<HC>");
+  if (node.hiddenTag !== null && node.hiddenTag !== hiddenByDefault(node, nodes)) t.push(node.hiddenTag ? "<H>" : "<!H>");
+  if (node.showDescription) t.push("<SD>");
+  if (withLinks) {
+    for (const p of node.parents) if (p !== indentParent) t.push(`[${p}]`);
+  }
+  return t.length ? " " + t.join(" ") : "";
+}
+
+/* Lines as { text, tags }: text is the indented name (or a // line), tags
+   the part after the name. With expand (Hide tags, P5-6) every link is shown
+   as indentation: a Node is also written as a plain name line under each of
+   its other Parents, and [..] {..} are left out. */
+function serialiseLines(nodes = NodeData, expand = false) {
+  const lines = [];
+  const seen = new Set();
+  const visit = (node, depth, parentName) => {
+    seen.add(node.name);
+    const ind = "\t".repeat(depth);
+    lines.push({ text: ind + node.name, tags: tagText(node, nodes, !expand, parentName) });
+    if (node.description) {
+      for (const d of node.description.split("\n")) lines.push({ text: (ind + "// " + d).trimEnd(), tags: "" });
+    }
+    for (const childName of node.children) {
+      const child = nodes.get(childName);
+      if (!child) continue;
+      if (!seen.has(childName) && child.parents[0] === node.name) visit(child, depth + 1, node.name);
+      else if (expand) lines.push({ text: ind + "\t" + childName, tags: "" });
+    }
+  };
+  const start = (node) => {
+    if (lines.length) lines.push({ text: "", tags: "" });
+    visit(node, 0);
+  };
+  for (const node of nodes.values()) if (!node.parents.length && !seen.has(node.name)) start(node);
+  for (const node of nodes.values()) if (!seen.has(node.name)) start(node);
+  lines.push({ text: "", tags: "" }); // the text always ends with an empty line (P9-5)
+  return lines;
+}
+
+function serialise(nodes = NodeData) {
+  return serialiseLines(nodes).map(l => l.text + l.tags).join("\n");
+}
+
+const TAGS = {
+  "?":  (t) => { t.isTickable = true; },
+  "!?": (t) => { t.isTickable = false; },
+  "??": (t) => { t.isTicked = true; },
+  "CC": (t) => { t.isContainer = true; },
+  "C":  (t) => { t.containedTag = true; },
+  "!C": (t) => { t.isContainable = false; },
+  "HC": (t) => { t.hideChildren = true; },
+  "H":  (t) => { t.hiddenTag = true; },
+  "!H": (t) => { t.hiddenTag = false; },
+  "SD": (t) => { t.showDescription = true; },
+};
+
+/* Returns a new Map of Nodes, or throws an Error listing what is wrong.
+   NodeData itself is only replaced by the caller once this succeeds (F20).
+   With ignoreLists (Hide tags, P5-6), [..] and {..} are ignored and links
+   come from indentation only. */
+function deserialise(text, ignoreLists = false) {
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  const nodes = new Map();
+  const errors = [];
+  const occurrences = new Map(); // name -> [{ name, parent, detailed, tags }]
+  const listed = new Map();      // name -> { parents: [...], children: [...] } from its own name line
+  let stack = [];                // stack[d] = occurrence at indent depth d
+  let lastComment = null;        // { occ, index } of the last // line, to join consecutive ones
+
+  const getNode = (name) => {
+    if (!nodes.has(name)) nodes.set(name, makeNode(name));
+    return nodes.get(name);
+  };
+  const link = (parent, child) => {
+    addUnique(getNode(parent).children, child);
+    addUnique(getNode(child).parents, parent);
+  };
+  const depthOf = (ws) => (ws.match(/\t/g) || []).length + Math.floor((ws.match(/ /g) || []).length / 4);
+
+  // Everything after the name: <tags>, [Parents] and {Children}
+  const readTags = (tail, occ, lineNo) => {
+    const re = /\s*(?:<([^<>]*)>|\[([^\[\]]*)\]|\{([^{}]*)\})/y;
+    const own = { parents: [], children: [] };
+    let at = 0, m;
+    while (at < tail.length && (re.lastIndex = at, m = re.exec(tail))) {
+      at = re.lastIndex;
+      if (m[1] !== undefined) {
+        const tag = m[1].trim();
+        const pos = tag.match(/^([xy])\s*:\s*(-?\d+(?:\.\d+)?)$/i);
+        if (pos) occ.tags[pos[1].toLowerCase()] = Math.round(Number(pos[2]));
+        else if (TAGS[tag.toUpperCase()]) TAGS[tag.toUpperCase()](occ.tags);
+        else { errors.push(`Line ${lineNo}: unknown tag <${tag}>.`); continue; }
+        occ.detailed = true;
+        continue;
+      }
+      if (ignoreLists) continue;
+      const name = (m[2] ?? m[3]).trim();
+      const problem = nameProblem(name);
+      if (problem) { errors.push(`Line ${lineNo}: ${problem}`); continue; }
+      if (name === occ.name) { errors.push(`Line ${lineNo}: "${name}" can't be its own Parent or Child.`); continue; }
+      if (m[2] !== undefined) { link(name, occ.name); own.parents.push(name); }
+      else { link(occ.name, name); own.children.push(name); }
+      occ.detailed = true;
+    }
+    if (tail.slice(at).trim() !== "") errors.push(`Line ${lineNo}: can't read "${tail.slice(at).trim()}"; tags look like <??> <x:100> <y:50> [Parent] {Child}.`);
+    if (own.parents.length || own.children.length) listed.set(occ.name, own);
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    const lineNo = i + 1;
+    if (raw.trim() === "") continue;
+    const ws = raw.match(/^[\t ]*/)[0];
+    const depth = depthOf(ws);
+    const content = raw.slice(ws.length).trimEnd();
+    const owner = stack[depth];
+
+    // Description: "// text"; consecutive lines join into one (Q36)
+    if (content.startsWith("//")) {
+      if (!owner) { errors.push(`Line ${lineNo}: description isn't lined up under a node.`); continue; }
+      const textPart = content.slice(2).replace(/^ /, "");
+      const node = getNode(owner.name);
+      if (lastComment && lastComment.occ === owner && lastComment.index === i - 1) node.description += "\n" + textPart;
+      else node.description = textPart;
+      lastComment = { occ: owner, index: i };
+      owner.detailed = true;
+      continue;
+    }
+
+    // Anything else is a name line. The Node is a Child of the name one level up
+    const tagAt = content.search(/[<\[{]/);
+    const name = (tagAt === -1 ? content : content.slice(0, tagAt)).trim();
+    const problem = nameProblem(name);
+    if (problem) { errors.push(`Line ${lineNo}: ${problem}`); stack = stack.slice(0, depth); continue; }
+    if (depth > stack.length) { errors.push(`Line ${lineNo}: indented too far; there's no node one level above it.`); continue; }
+    let parent = null;
+    if (depth > 0) {
+      parent = stack[depth - 1].name;
+      if (parent === name) { errors.push(`Line ${lineNo}: "${name}" can't be its own Child.`); continue; }
+      getNode(name);
+      link(parent, name);
+    } else {
+      getNode(name);
+    }
+    const occ = { name, parent, detailed: false, tags: {} };
+    if (!occurrences.has(name)) occurrences.set(name, []);
+    occurrences.get(name).push(occ);
+    stack = stack.slice(0, depth);
+    stack[depth] = occ;
+    if (tagAt !== -1) readTags(content.slice(tagAt), occ, lineNo);
+  }
+
+  // A Node may be named in several places, but its tags and description
+  // only in one (Q14). The Parent it is detailed under becomes its first
+  // Parent, so the layout stays the same after Update (P8-5).
+  const firstParent = new Map();
+  for (const [name, occs] of occurrences) {
+    const detailed = occs.filter(o => o.detailed);
+    if (detailed.length > 1) { errors.push(`"${name}" has tags or a description in more than one place; give them in one place only.`); continue; }
+    if (!detailed.length) continue;
+    const node = nodes.get(name);
+    Object.assign(node, detailed[0].tags);
+    if (detailed[0].parent) firstParent.set(name, detailed[0].parent);
+  }
+
+  if (errors.length) throw new Error(errors.join("\n"));
+
+  // A Node's own name line sets the order of its Parents and Children,
+  // so its first Parent stays the same after a round trip
+  for (const [name, own] of listed) {
+    const node = nodes.get(name);
+    node.parents = [...new Set([...own.parents, ...node.parents])];
+    node.children = [...new Set([...own.children, ...node.children])];
+  }
+  for (const [name, parent] of firstParent) {
+    const node = nodes.get(name);
+    node.parents = [parent, ...node.parents.filter(p => p !== parent)];
+  }
+  return nodes;
+}
+
+/* =====================================================================
+   Editing NodeData (renames update every reference, Q3)
+   ===================================================================== */
+function saveNode(originalName, values, pos) {
+  let node;
+  if (originalName === null) {
+    node = makeNode(values.name);
+    node.x = Math.round(pos.x);
+    node.y = Math.round(pos.y);
+    NodeData.set(values.name, node);
+  } else {
+    node = NodeData.get(originalName);
+    if (values.name !== originalName) renameNode(originalName, values.name);
+  }
+  for (const key of ["description", "isTickable", "isTicked", "isContainer", "isContainable", "hideChildren", "showDescription"]) {
+    node[key] = values[key];
+  }
+  return node;
+}
+
+function renameNode(oldName, newName) {
+  const node = NodeData.get(oldName);
+  node.name = newName;
+  // Rebuild the Map so the order is kept but the key changes
+  const entries = [...NodeData.entries()].map(([k, v]) => [k === oldName ? newName : k, v]);
+  NodeData.clear();
+  for (const [k, v] of entries) NodeData.set(k, v);
+  for (const other of NodeData.values()) {
+    other.children = other.children.map(n => n === oldName ? newName : n);
+    other.parents = other.parents.map(n => n === oldName ? newName : n);
+  }
+  selectedList = selectedList.map(n => n === oldName ? newName : n);
+  if (hovered === oldName) hovered = newName;
+}
+
+/* =====================================================================
+   Tile interface
+   ===================================================================== */
+const tileView = document.getElementById("tileView");
+const world = document.getElementById("world");
+const tilesEl = document.getElementById("tiles");
+const arrowLayer = document.getElementById("arrowLayer");
+const tooltip = document.getElementById("tooltip");
+const emptyHint = document.getElementById("emptyHint");
+const selBox = document.getElementById("selBox");
+
+const view = { panX: 0, panY: 0, zoom: 1 };
+const tileEls = new Map(); // name -> element (hidden Nodes have none)
+let hovered = null;        // name of the Tile under the mouse
+let selectedList = [];     // selected Tiles, in the order they were selected (P5-5)
+
+const LAYOUT = { left: 60, top: 60, indent: 40, autoGap: 7, treeGap: 60, minWidth: 180 };
+const coarse = matchMedia("(pointer: coarse)").matches; // touch screen (P8-7)
+let selectMode = false; // "Select" button: taps and drags act as if Shift were held (P8-7, Q64)
+
+function applyView() {
+  world.style.transform = `translate(${view.panX}px, ${view.panY}px) scale(${view.zoom})`;
+  // The dotted background moves and scales with the Tiles (P6-3). Zoomed far
+  // out, every other dot is skipped so they don't run together.
+  let spacing = 24 * view.zoom;
+  while (spacing < 12) spacing *= 2;
+  tileView.style.backgroundSize = `${spacing}px ${spacing}px`;
+  tileView.style.backgroundPosition = `${view.panX}px ${view.panY}px`;
+  tileView.style.setProperty("--dot-r", Math.min(2, Math.max(1, view.zoom)) + "px");
+}
+
+function visibleNodes() {
+  return [...NodeData.values()].filter(n => !isHidden(n));
+}
+
+/* Size a Tile to fit its whole text at a 5:1 width-to-height ratio (5:2 when
+   it shows its description), wrapping long text onto more lines (P2-18, Q39) */
+function sizeTile(el, ratio) {
+  el.style.height = "";
+  el.style.width = "max-content";
+  const oneLine = el.offsetWidth;
+  const heightAt = (w) => { el.style.width = w + "px"; return el.offsetHeight; };
+  const fits = (w) => ratio * heightAt(w) <= w;
+
+  let width = Math.max(LAYOUT.minWidth, oneLine, ratio * heightAt(Math.max(LAYOUT.minWidth, oneLine)));
+  // Narrow a long Tile while wrapping still fits inside the shape
+  if (oneLine > LAYOUT.minWidth && fits(oneLine)) {
+    let lo = LAYOUT.minWidth, hi = oneLine;
+    if (fits(lo)) hi = lo;
+    while (hi - lo > 4) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (fits(mid)) hi = mid; else lo = mid;
+    }
+    width = hi;
+  }
+  el.style.width = width + "px";
+  el.style.height = Math.max(width / ratio, heightAt(width)) + "px";
+}
+
+function tileSize(name) {
+  const el = tileEls.get(name);
+  return el ? { w: el.offsetWidth, h: el.offsetHeight } : { w: LAYOUT.minWidth, h: LAYOUT.minWidth / 5 };
+}
+
+/* Auto place: each tree is an indented list (Children below and slightly
+   right of their Parent), and the trees sit side by side in rows. The number
+   of columns is the one that makes the whole layout closest to 5:1 (P6-4,
+   Q56, Q58). Hidden Tiles take no space. */
+// Gap above a Tile: 7px (P8-1), times one more for every level the
+// indentation goes back from the Tile above (P9-8, Q72)
+function gapAbove(prevDepth, depth) {
+  return LAYOUT.autoGap * (1 + Math.max(0, prevDepth - depth));
+}
+
+// Visible Nodes in tree order, each with its depth and tree number
+function visibleTreeOrder() {
+  const out = [];
+  let tree = -1;
+  for (const { node, depth } of treeOrder()) {
+    if (depth === 0) tree++;
+    if (!isHidden(node)) out.push({ node, depth, tree });
+  }
+  return out;
+}
+
+function layoutTrees() {
+  const trees = [];
+  let last = -1, prevDepth = 0;
+  for (const { node, depth, tree: t } of visibleTreeOrder()) {
+    if (t !== last) { trees.push({ items: [], w: 0, h: 0 }); last = t; }
+    const tree = trees[trees.length - 1];
+    const size = tileSize(node.name);
+    const x = depth * LAYOUT.indent;
+    tree.items.push({ node, x, y: tree.items.length ? tree.h + gapAbove(prevDepth, depth) : 0 });
+    tree.h = tree.items[tree.items.length - 1].y + size.h;
+    tree.w = Math.max(tree.w, x + size.w);
+    prevDepth = depth;
+  }
+  return trees;
+}
+
+/* Put one Tile where Auto place would, relative to the Tiles around it as
+   they are now: one indent right of its first Parent and below the Tile just
+   above it in its tree (P9-6, P9-7, Q71). Returns false if it has nothing
+   above it in its tree. */
+function placeInTree(order, i) {
+  const { node, depth, tree } = order[i];
+  const prev = order[i - 1];
+  if (!prev || prev.tree !== tree || prev.node.x === null || prev.node.y === null) return false;
+  const parent = NodeData.get(node.parents[0]);
+  node.x = parent && tileEls.has(parent.name) && parent.x !== null ? parent.x + LAYOUT.indent
+    : prev.node.x + (depth - prev.depth) * LAYOUT.indent;
+  node.y = prev.node.y + tileSize(prev.node.name).h + gapAbove(prev.depth, depth);
+  return true;
+}
+
+/* Auto place with Tiles selected: only those move; a selected root stays
+   where it is (P9-6) */
+function autoPlaceSelected() {
+  const order = visibleTreeOrder();
+  order.forEach((item, i) => { if (selectedList.includes(item.node.name)) placeInTree(order, i); });
+}
+
+function autoPlaceAll() {
+  const trees = layoutTrees();
+  if (!trees.length) return;
+  const grid = (cols) => {
+    const colW = [], rowH = [];
+    trees.forEach((t, i) => {
+      const c = i % cols, r = Math.floor(i / cols);
+      colW[c] = Math.max(colW[c] || 0, t.w);
+      rowH[r] = Math.max(rowH[r] || 0, t.h);
+    });
+    const w = colW.reduce((a, b) => a + b, 0) + LAYOUT.treeGap * (colW.length - 1);
+    const h = rowH.reduce((a, b) => a + b, 0) + LAYOUT.treeGap * (rowH.length - 1);
+    return { cols, colW, rowH, score: Math.abs(Math.log((w / h) / 5)) };
+  };
+  let best = grid(1);
+  for (let cols = 2; cols <= trees.length; cols++) {
+    const g = grid(cols);
+    if (g.score < best.score) best = g;
+  }
+  trees.forEach((t, i) => {
+    const c = i % best.cols, r = Math.floor(i / best.cols);
+    let left = LAYOUT.left, top = LAYOUT.top;
+    for (let k = 0; k < c; k++) left += best.colW[k] + LAYOUT.treeGap;
+    for (let k = 0; k < r; k++) top += best.rowH[k] + LAYOUT.treeGap;
+    for (const item of t.items) {
+      item.node.x = left + item.x;
+      item.node.y = top + item.y;
+    }
+  });
+}
+
+/* Tiles without a position (e.g. typed into the text): placed with the same
+   rules as Auto place (P9-7). A new root goes right of the last root in the
+   bottom row (Q57). */
+function placeMissing() {
+  const shown = visibleNodes();
+  const unplaced = (n) => n.x === null || n.y === null;
+  if (!shown.some(unplaced)) return;
+  if (shown.every(unplaced)) { autoPlaceAll(); return; }
+
+  const bottom = (n) => n.y + tileSize(n.name).h;
+  const right = (n) => n.x + tileSize(n.name).w;
+  const order = visibleTreeOrder();
+  order.forEach(({ node }, i) => {
+    if (!unplaced(node)) return;
+    if (placeInTree(order, i)) return;
+    const placedRoots = shown.filter(n => !n.parents.length && !unplaced(n));
+    if (placedRoots.length) {
+      // A new root: the next free spot to the right of the last root in the bottom row (Q57)
+      const rowY = Math.max(...placedRoots.map(n => n.y));
+      const inRow = shown.filter(n => !unplaced(n) && n.y >= rowY);
+      node.x = Math.max(...inRow.map(right)) + LAYOUT.treeGap;
+      node.y = rowY;
+    } else {
+      const placed = shown.filter(n => !unplaced(n));
+      node.x = Math.min(...placed.map(n => n.x));
+      node.y = Math.max(...placed.map(bottom)) + LAYOUT.treeGap;
+    }
+  });
+}
+
+function renderTiles() {
+  tilesEl.textContent = "";
+  tileEls.clear();
+  for (const node of visibleNodes()) {
+    const ticked = node.isTickable && node.isTicked;
+    const el = document.createElement("div");
+    el.className = "tile" + (ticked ? " done" : "");
+    el.dataset.name = node.name;
+
+    // No checkbox when the Node isn't tickable (Q40)
+    if (node.isTickable) {
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = node.isTicked;
+      box.title = "Ticked";
+      box.addEventListener("pointerdown", e => e.stopPropagation());
+      box.addEventListener("dblclick", e => e.stopPropagation());
+      box.addEventListener("change", () => {
+        node.isTicked = box.checked;
+        el.classList.toggle("done", node.isTicked);
+        refreshText();
+      });
+      el.append(box);
+    }
+
+    const body = document.createElement("div");
+    body.className = "body";
+    const label = document.createElement("span");
+    label.className = "name";
+    label.textContent = node.name;
+    body.append(label);
+    const withDesc = node.showDescription && node.description;
+    if (withDesc) {
+      const d = document.createElement("span");
+      d.className = "desc";
+      d.textContent = node.description;
+      body.append(d);
+    }
+    el.append(body);
+
+    attachTileEvents(el, node);
+    tilesEl.append(el);
+    tileEls.set(node.name, el);
+    sizeTile(el, withDesc ? 2.5 : 5);
+  }
+  placeMissing();
+  for (const node of visibleNodes()) moveTile(node);
+  emptyHint.hidden = NodeData.size > 0;
+  setSelection(selectedList);
+}
+
+function moveTile(node) {
+  const el = tileEls.get(node.name);
+  if (!el) return;
+  el.style.left = node.x + "px";
+  el.style.top = node.y + "px";
+  if (node.name === selectedList[0]) positionDots();
+}
+
+/* Selection (P5-5). Only Tiles on screen can be selected. */
+function setSelection(list) {
+  selectedList = [...new Set(list)].filter(n => tileEls.has(n));
+  for (const [n, el] of tileEls) el.classList.toggle("selected", selectedList.includes(n));
+  positionDots();
+  drawArrows();
+  if (!textView.hidden) updateEditor();
+}
+function selectOnly(name) { setSelection(name ? [name] : []); }
+function toggleSelected(name) {
+  setSelection(selectedList.includes(name) ? selectedList.filter(n => n !== name) : [...selectedList, name]);
+}
+
+/* Contained Children move with their Parent, at every level (P5-1) */
+function containedBelow(name, out) {
+  for (const childName of NodeData.get(name).children) {
+    const child = NodeData.get(childName);
+    if (child && !out.has(childName) && isContained(child)) {
+      out.add(childName);
+      containedBelow(childName, out);
+    }
+  }
+  return out;
+}
+
+function attachTileEvents(el, node) {
+  let drag = null;
+
+  el.addEventListener("pointerdown", e => {
+    if (e.button !== 0) return;
+    // Touch: an unselected Tile is tapped to select it, and dragging it pans
+    // the view instead (P9-10); the empty-space handler deals with both
+    if (e.pointerType === "touch" && !selectMode && !selectedList.includes(node.name)) return;
+    e.stopPropagation();
+    hideTooltip();
+    const wasSelected = selectedList.includes(node.name);
+    const multi = e.shiftKey || selectMode;
+    if (multi) {
+      // Shift+Click adds or removes this Tile (P5-5)
+      toggleSelected(node.name);
+      if (!selectedList.includes(node.name)) return;
+    } else if (!wasSelected) {
+      selectOnly(node.name);
+    }
+    // Dragging a selected Tile moves the whole selection, plus anything contained
+    const moving = new Set(selectedList);
+    for (const n of selectedList) containedBelow(n, moving);
+    const start = new Map();
+    for (const n of moving) {
+      const m = NodeData.get(n);
+      if (m.x !== null && m.y !== null) start.set(n, { x: m.x, y: m.y });
+    }
+    el.setPointerCapture(e.pointerId);
+    drag = { startX: e.clientX, startY: e.clientY, start, moved: false, narrowOnClick: !multi && wasSelected && selectedList.length > 1 };
+    el.classList.add("dragging");
+    // Touch has no hover: press and hold shows the tooltip (P8-7, Q65)
+    if (e.pointerType === "touch") {
+      const d = drag;
+      d.holdTimer = setTimeout(() => { if (drag === d && !d.moved) showTooltip(node, e); }, 500);
+    }
+  });
+  el.addEventListener("pointermove", e => {
+    if (drag) {
+      const dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
+      if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+      drag.moved = true;
+      for (const [n, s] of drag.start) {
+        const m = NodeData.get(n);
+        m.x = Math.round(s.x + dx / view.zoom);
+        m.y = Math.round(s.y + dy / view.zoom);
+        moveTile(m);
+      }
+      drawArrows();
+      if (editing && drag.start.has(editing.originalName)) positionForm();
+    } else {
+      showTooltip(node, e);
+    }
+  });
+  const endDrag = (apply) => {
+    if (!drag) return;
+    clearTimeout(drag.holdTimer);
+    if (drag.moved) refreshText();
+    else if (apply && drag.narrowOnClick) selectOnly(node.name); // plain click selects just this Tile
+    drag = null;
+    el.classList.remove("dragging");
+  };
+  el.addEventListener("pointerup", () => endDrag(true));
+  el.addEventListener("pointercancel", () => endDrag(false));
+
+  el.addEventListener("pointerenter", () => { hovered = node.name; drawArrows(); });
+  el.addEventListener("pointerleave", e => {
+    if (drag) return;
+    if (hovered === node.name) hovered = null;
+    if (e.pointerType !== "touch") hideTooltip(); // a held tooltip stays until the next touch
+    drawArrows();
+  });
+  el.addEventListener("dblclick", e => {
+    e.stopPropagation();
+    openForm(node.name);
+  });
+}
+
+/* Tooltip: name in bold, description on the next line (P2-17) */
+function showTooltip(node, e) {
+  tooltip.textContent = "";
+  const b = document.createElement("b");
+  b.textContent = node.name;
+  tooltip.append(b);
+  if (node.description) {
+    const d = document.createElement("span");
+    d.textContent = node.description;
+    tooltip.append(d);
+  }
+  tooltip.hidden = false;
+  const pad = 14;
+  let left = e.clientX + pad, top = e.clientY + pad;
+  const r = tooltip.getBoundingClientRect();
+  if (left + r.width > window.innerWidth - 8) left = e.clientX - r.width - pad;
+  if (top + r.height > window.innerHeight - 8) top = e.clientY - r.height - pad;
+  tooltip.style.left = left + "px";
+  tooltip.style.top = top + "px";
+}
+function hideTooltip() { tooltip.hidden = true; }
+
+/* Arrows for every selected Tile; hovering another Tile shows just its
+   arrows (P2-16, Q47). Green to Children, red from Parents. */
+/* Container boxes: around each container's Tile and every Tile contained in
+   it, at any depth (P6-1, Q52 to Q55). Bigger boxes are drawn first, so a
+   container inside a container gets a box inside a box. */
+const boxesEl = document.getElementById("boxes");
+const BOX_MARGIN = 12;
+function drawBoxes() {
+  boxesEl.textContent = "";
+  const memo = new Map();
+  // Outline of a container: its Tile, its contained Tiles and the boxes of
+  // any containers among them, plus a margin
+  const boxOf = (name, seen) => {
+    if (memo.has(name)) return memo.get(name);
+    seen.add(name);
+    const parts = [tileBox(name)];
+    for (const n of containedBelow(name, new Set())) {
+      if (!tileEls.has(n)) continue;
+      const m = NodeData.get(n);
+      parts.push(m.isContainer && !seen.has(n) ? boxOf(n, seen) || tileBox(n) : tileBox(n));
+    }
+    if (parts.length < 2) { memo.set(name, null); return null; }
+    const x = Math.min(...parts.map(b => b.x)) - BOX_MARGIN, y = Math.min(...parts.map(b => b.y)) - BOX_MARGIN;
+    const box = { x, y, w: Math.max(...parts.map(b => b.x + b.w)) + BOX_MARGIN - x, h: Math.max(...parts.map(b => b.y + b.h)) + BOX_MARGIN - y };
+    memo.set(name, box);
+    return box;
+  };
+  const boxes = [];
+  for (const node of NodeData.values()) {
+    if (!node.isContainer || !tileEls.has(node.name)) continue;
+    const b = boxOf(node.name, new Set());
+    if (b) boxes.push(b);
+  }
+  boxes.sort((a, b) => b.w * b.h - a.w * a.h);
+  for (const b of boxes) {
+    const el = document.createElement("div");
+    el.className = "cbox";
+    Object.assign(el.style, { left: b.x + "px", top: b.y + "px", width: b.w + "px", height: b.h + "px" });
+    boxesEl.append(el);
+  }
+}
+
+function drawArrows() {
+  drawBoxes();
+  arrowLayer.textContent = "";
+  const names = hovered && tileEls.has(hovered) && !selectedList.includes(hovered) ? [hovered] : selectedList;
+  const drawn = new Set();
+  const once = (from, to, cls, marker) => {
+    const key = from + "\u0000" + to;
+    if (drawn.has(key)) return;
+    drawn.add(key);
+    drawArrow(from, to, cls, marker);
+  };
+  for (const name of names) {
+    const node = NodeData.get(name);
+    if (!node) continue;
+    for (const c of node.children) once(name, c, "to-child", "headGreen");
+    for (const p of node.parents) once(p, name, "from-parent", "headRed");
+  }
+}
+
+function tileBox(name) {
+  const el = tileEls.get(name);
+  const n = NodeData.get(name);
+  if (!el || !n) return null;
+  return { x: n.x, y: n.y, w: el.offsetWidth, h: el.offsetHeight };
+}
+
+/* Right-angled arrows, both leaving and arriving at the left side of the
+   Tiles: left until clear of both Tiles, up or down, then right to the end
+   Tile (P8-3, Q62) */
+const ARROW_CLEAR = 16;
+function drawArrow(fromName, toName, cls, marker) {
+  const a = tileBox(fromName), b = tileBox(toName);
+  if (!a || !b) return;
+  const ay = a.y + a.h / 2, by = b.y + b.h / 2;
+  const xv = Math.min(a.x, b.x) - ARROW_CLEAR;
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", `M${a.x},${ay} H${xv} V${by} H${b.x - 2}`);
+  path.setAttribute("class", cls);
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke-width", "2.5");
+  path.setAttribute("stroke-linejoin", "miter");
+  path.setAttribute("marker-end", `url(#${marker})`);
+  arrowLayer.append(path);
+}
+
+function toWorld(clientX, clientY) {
+  const r = tileView.getBoundingClientRect();
+  return { x: (clientX - r.left - view.panX) / view.zoom, y: (clientY - r.top - view.panY) / view.zoom };
+}
+
+/* Empty space: drag pans the view (F16) and a click deselects all;
+   Shift + drag draws a selection box instead (P5-5, Q44) */
+let pan = null;
+let boxSel = null;
+tileView.addEventListener("pointerdown", e => {
+  if (e.button !== 0 || e.target.closest("#editForm, .dot")) return;
+  const tile = e.target.closest(".tile"); // only reaches here for a touch on an unselected Tile (P9-10)
+  if (tile && e.pointerType !== "touch") return;
+  tileView.setPointerCapture(e.pointerId);
+  if (tile) {
+    const name = tile.dataset.name;
+    pan = { startX: e.clientX, startY: e.clientY, panX: view.panX, panY: view.panY, moved: false, tapTile: name };
+    // Press and hold still shows the tooltip (Q65)
+    pan.holdTimer = setTimeout(() => { if (pan && pan.tapTile === name && !pan.moved) showTooltip(NodeData.get(name), e); }, 500);
+    return;
+  }
+  if (e.shiftKey || selectMode) {
+    const r = tileView.getBoundingClientRect();
+    boxSel = { x0: e.clientX - r.left, y0: e.clientY - r.top, base: [...selectedList] };
+    Object.assign(selBox.style, { left: boxSel.x0 + "px", top: boxSel.y0 + "px", width: "0px", height: "0px" });
+    selBox.hidden = false;
+    return;
+  }
+  pan = { startX: e.clientX, startY: e.clientY, panX: view.panX, panY: view.panY, moved: false };
+  tileView.classList.add("panning");
+});
+tileView.addEventListener("pointermove", e => {
+  if (boxSel) {
+    const r = tileView.getBoundingClientRect();
+    const x1 = e.clientX - r.left, y1 = e.clientY - r.top;
+    const left = Math.min(boxSel.x0, x1), top = Math.min(boxSel.y0, y1);
+    const right = Math.max(boxSel.x0, x1), bottom = Math.max(boxSel.y0, y1);
+    Object.assign(selBox.style, { left: left + "px", top: top + "px", width: (right - left) + "px", height: (bottom - top) + "px" });
+    // Every Tile the box touches is added
+    const touched = [];
+    for (const [n, el] of tileEls) {
+      const t = el.getBoundingClientRect();
+      const tl = t.left - r.left, tt = t.top - r.top;
+      if (tl <= right && tl + t.width >= left && tt <= bottom && tt + t.height >= top) touched.push(n);
+    }
+    setSelection([...boxSel.base, ...touched]);
+    return;
+  }
+  if (!pan) return;
+  if (Math.abs(e.clientX - pan.startX) + Math.abs(e.clientY - pan.startY) > 3) pan.moved = true;
+  view.panX = pan.panX + (e.clientX - pan.startX);
+  view.panY = pan.panY + (e.clientY - pan.startY);
+  applyView();
+  if (editing) positionForm();
+});
+const endPan = (apply) => {
+  if (boxSel) { boxSel = null; selBox.hidden = true; }
+  if (pan) clearTimeout(pan.holdTimer);
+  if (pan && !pan.moved && apply) selectOnly(pan.tapTile || null); // a tap on a Tile selects it
+  pan = null;
+  tileView.classList.remove("panning");
+};
+tileView.addEventListener("pointerup", () => endPan(true));
+tileView.addEventListener("pointercancel", () => endPan(false));
+
+/* Touch (P8-7): two fingers pinch to zoom around the point between them, a
+   double tap acts as a double-click, and any touch closes a held tooltip */
+const touches = new Map(); // pointerId -> { x, y, t, x0, y0 }
+let pinch = null;
+let lastTap = null;
+function pinchState() {
+  const [a, b] = [...touches.values()];
+  const r = tileView.getBoundingClientRect();
+  return { dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2 - r.left, my: (a.y + b.y) / 2 - r.top };
+}
+tileView.addEventListener("pointerdown", e => {
+  if (e.pointerType !== "touch") return;
+  hideTooltip();
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t: performance.now() });
+  if (touches.size === 2) {
+    // Second finger: stop any pan, box or drag and start pinching
+    e.stopPropagation();
+    pan = null;
+    if (boxSel) { boxSel = null; selBox.hidden = true; }
+    tileView.classList.remove("panning");
+    const st = pinchState();
+    pinch = { ...st, zoom: view.zoom, wx: (st.mx - view.panX) / view.zoom, wy: (st.my - view.panY) / view.zoom };
+  }
+}, true);
+tileView.addEventListener("pointermove", e => {
+  const t = touches.get(e.pointerId);
+  if (!t) return;
+  t.x = e.clientX; t.y = e.clientY;
+  if (!pinch) return;
+  e.stopPropagation(); // until every finger is up, no finger pans or drags
+  if (touches.size < 2) return;
+  const st = pinchState();
+  view.zoom = Math.min(4, Math.max(0.2, pinch.zoom * st.dist / pinch.dist));
+  view.panX = st.mx - pinch.wx * view.zoom;
+  view.panY = st.my - pinch.wy * view.zoom;
+  applyView();
+  if (editing) positionForm();
+}, true);
+const endTouch = (e) => {
+  const t = touches.get(e.pointerId);
+  if (!t) return;
+  touches.delete(e.pointerId);
+  if (pinch) { if (!touches.size) pinch = null; return; }
+  // Double tap: two quick taps in about the same place
+  const now = performance.now();
+  if (e.type !== "pointerup" || now - t.t > 300 || Math.hypot(e.clientX - t.x0, e.clientY - t.y0) > 10) { lastTap = null; return; }
+  if (lastTap && now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) {
+    lastTap = null;
+    const hit = document.elementFromPoint(e.clientX, e.clientY);
+    const tile = hit && hit.closest(".tile");
+    if (tile) openForm(tile.dataset.name);
+    else if (blankAt(e.clientX, e.clientY)) openForm(null, toWorld(e.clientX, e.clientY));
+  } else {
+    lastTap = { t: now, x: e.clientX, y: e.clientY };
+  }
+};
+tileView.addEventListener("pointerup", endTouch, true);
+tileView.addEventListener("pointercancel", endTouch, true);
+
+const selectModeBtn = document.getElementById("selectModeBtn");
+selectModeBtn.addEventListener("click", () => {
+  selectMode = !selectMode;
+  selectModeBtn.classList.toggle("active", selectMode);
+  selectModeBtn.setAttribute("aria-pressed", selectMode);
+});
+
+/* Zooming: scroll wheel, centred on the middle of the canvas (F15) */
+tileView.addEventListener("wheel", e => {
+  if (e.target.closest("#editForm")) return;
+  e.preventDefault();
+  const factor = Math.exp(-e.deltaY * 0.0015);
+  const newZoom = Math.min(4, Math.max(0.2, view.zoom * factor));
+  const cx = tileView.clientWidth / 2, cy = tileView.clientHeight / 2;
+  const wx = (cx - view.panX) / view.zoom, wy = (cy - view.panY) / view.zoom;
+  view.zoom = newZoom;
+  view.panX = cx - wx * newZoom;
+  view.panY = cy - wy * newZoom;
+  applyView();
+  if (editing) positionForm();
+}, { passive: false });
+
+/* New Node: double-click on blank space (Q8) */
+tileView.addEventListener("dblclick", e => {
+  if (e.target.closest(".tile, #editForm, .dot")) return;
+  openForm(null, toWorld(e.clientX, e.clientY));
+});
+
+document.getElementById("autoPlaceBtn").addEventListener("click", () => {
+  closeForm();
+  if (selectedList.length) autoPlaceSelected(); else autoPlaceAll(); // P9-6
+  for (const node of visibleNodes()) moveTile(node);
+  drawArrows();
+  refreshText();
+});
+
+/* =====================================================================
+   Link dots on the first selected Tile: red makes the dropped-on Tile a
+   Parent, green makes it a Child, for every selected Tile one by one; an
+   existing link is removed instead (P3-7, P3-8, Q45). Dropped on empty
+   space, the dot opens the New Node form (P5-2).
+   ===================================================================== */
+const parentDot = document.getElementById("parentDot");
+const childDot = document.getElementById("childDot");
+const dragLine = document.getElementById("dragLine");
+
+function positionDots() {
+  const box = selectedList.length && tileBox(selectedList[0]);
+  parentDot.hidden = childDot.hidden = !box;
+  if (!box) return;
+  const cy = box.y + box.h / 2;
+  // Red (Parent) on the left, green (Child) on the right (P8-2)
+  const gap = coarse ? 24 : 14;
+  parentDot.style.left = (box.x - gap) + "px";
+  parentDot.style.top = cy + "px";
+  childDot.style.left = (box.x + box.w + gap) + "px";
+  childDot.style.top = cy + "px";
+}
+
+function linkNodes(parentName, childName) {
+  addUnique(NodeData.get(parentName).children, childName);
+  addUnique(NodeData.get(childName).parents, parentName);
+}
+function unlinkNodes(parentName, childName) {
+  const p = NodeData.get(parentName), c = NodeData.get(childName);
+  p.children = p.children.filter(n => n !== childName);
+  c.parents = c.parents.filter(n => n !== parentName);
+}
+
+function tileAt(clientX, clientY) {
+  const el = document.elementFromPoint(clientX, clientY);
+  const tile = el && el.closest(".tile");
+  return tile ? tile.dataset.name : null;
+}
+
+function blankAt(clientX, clientY) {
+  const el = document.elementFromPoint(clientX, clientY);
+  return !!el && !!el.closest("#tileView") && !el.closest(".tile, #editForm, .dot");
+}
+
+function attachDot(dot, kind) {
+  let drag = null;
+  let target = null;
+  const setTarget = (name) => {
+    if (target && tileEls.has(target)) tileEls.get(target).classList.remove("drop-target");
+    target = name && !selectedList.includes(name) ? name : null;
+    if (target) tileEls.get(target).classList.add("drop-target");
+  };
+
+  dot.addEventListener("pointerdown", e => {
+    if (e.button !== 0 || !selectedList.length) return;
+    e.stopPropagation();
+    dot.setPointerCapture(e.pointerId);
+    drag = { startX: e.clientX, startY: e.clientY, moved: false };
+    hideTooltip();
+    const start = { x: parseFloat(dot.style.left), y: parseFloat(dot.style.top) };
+    dragLine.setAttribute("x1", start.x); dragLine.setAttribute("y1", start.y);
+    dragLine.setAttribute("x2", start.x); dragLine.setAttribute("y2", start.y);
+    dragLine.setAttribute("class", kind);
+    dragLine.setAttribute("visibility", "visible");
+  });
+  dot.addEventListener("pointermove", e => {
+    if (!drag) return;
+    if (Math.abs(e.clientX - drag.startX) + Math.abs(e.clientY - drag.startY) > 5) drag.moved = true;
+    const p = toWorld(e.clientX, e.clientY);
+    dragLine.setAttribute("x2", p.x); dragLine.setAttribute("y2", p.y);
+    setTarget(tileAt(e.clientX, e.clientY));
+  });
+  const finish = (e, apply) => {
+    if (!drag) return;
+    const moved = drag.moved;
+    drag = null;
+    dragLine.setAttribute("visibility", "hidden");
+    const name = target;
+    setTarget(null);
+    if (!apply || !moved) return;
+    if (name) {
+      // Tile by tile: remove the link where it exists, add it where it doesn't (Q45)
+      for (const s of selectedList) {
+        const me = NodeData.get(s);
+        if (kind === "parent") {
+          if (me.parents.includes(name)) unlinkNodes(name, s); else linkNodes(name, s);
+        } else {
+          if (me.children.includes(name)) unlinkNodes(s, name); else linkNodes(s, name);
+        }
+      }
+      renderTiles(); // links can change which Tiles are hidden
+      refreshText();
+    } else if (!tileAt(e.clientX, e.clientY) && blankAt(e.clientX, e.clientY)) {
+      openForm(null, toWorld(e.clientX, e.clientY), { kind, names: [...selectedList] });
+    }
+  };
+  dot.addEventListener("pointerup", e => finish(e, true));
+  dot.addEventListener("pointercancel", e => finish(e, false));
+  dot.addEventListener("dblclick", e => e.stopPropagation());
+}
+attachDot(parentDot, "parent");
+attachDot(childDot, "child");
+
+/* =====================================================================
+   New Node / Edit Node form (P2-15, P5-1)
+   ===================================================================== */
+const editForm = document.getElementById("editForm");
+const fName = document.getElementById("fName");
+const fDescription = document.getElementById("fDescription");
+const formErrors = document.getElementById("formErrors");
+const fChecks = {
+  isTickable: document.getElementById("fTickable"),
+  isTicked: document.getElementById("fTicked"),
+  isContainer: document.getElementById("fContainer"),
+  isContainable: document.getElementById("fContainable"),
+  hideChildren: document.getElementById("fHideChildren"),
+  showDescription: document.getElementById("fShowDescription"),
+};
+let editing = null; // { originalName, pos, links: { kind, names } for a dot dropped on empty space }
+
+// Ticked only means something for a tickable Node (Q40)
+function syncTickedBox() {
+  fChecks.isTicked.disabled = !fChecks.isTickable.checked;
+  document.getElementById("fTickedLabel").classList.toggle("disabled", fChecks.isTicked.disabled);
+}
+fChecks.isTickable.addEventListener("change", syncTickedBox);
+
+function openForm(name, pos, links) {
+  editing = { originalName: name, pos: pos || null, links: links || null };
+  formErrors.textContent = "";
+  const node = name !== null ? NodeData.get(name) : makeNode("");
+  document.getElementById("editTitle").textContent = name !== null ? "Edit node"
+    : links ? (links.kind === "parent" ? "New Parent node" : "New Child node") : "New node";
+  fName.value = node.name;
+  fDescription.value = node.description;
+  for (const [key, box] of Object.entries(fChecks)) box.checked = node[key];
+  syncTickedBox();
+  if (name !== null) selectOnly(name);
+  document.getElementById("deleteBtn").hidden = name === null; // Edit form only (P6-6)
+  editForm.hidden = false;
+  positionForm();
+  fName.focus();
+  fName.select();
+}
+
+function closeForm() {
+  editForm.hidden = true;
+  editing = null;
+}
+
+/* Place the form just above its Tile, kept inside the visible canvas (U5) */
+function positionForm() {
+  if (!editing) return;
+  const vw = tileView.clientWidth, vh = tileView.clientHeight;
+  const fw = editForm.offsetWidth, fh = editForm.offsetHeight;
+  let anchorLeft, anchorTop, anchorBottom;
+  if (editing.originalName !== null && tileEls.has(editing.originalName)) {
+    const b = tileBox(editing.originalName);
+    anchorLeft = b.x * view.zoom + view.panX;
+    anchorTop = b.y * view.zoom + view.panY;
+    anchorBottom = anchorTop + b.h * view.zoom;
+  } else {
+    const p = editing.pos || { x: 0, y: 0 };
+    anchorLeft = p.x * view.zoom + view.panX;
+    anchorTop = anchorBottom = p.y * view.zoom + view.panY;
+  }
+  let top = anchorTop - fh - 8;
+  if (top < 8) top = anchorBottom + 8;           // no room above: open below
+  top = Math.max(8, Math.min(top, vh - fh - 8)); // keep it on screen
+  const left = Math.max(8, Math.min(anchorLeft, vw - fw - 8));
+  editForm.style.left = left + "px";
+  editForm.style.top = top + "px";
+}
+
+function validateForm() {
+  const errors = [];
+  const name = fName.value.trim();
+  const values = { name, description: fDescription.value.replace(/\r\n?/g, "\n").replace(/\s+$/, "") };
+  for (const [key, box] of Object.entries(fChecks)) values[key] = box.checked;
+  const p = nameProblem(name);
+  if (p) errors.push(p);
+  if (name && name !== editing.originalName && NodeData.has(name)) errors.push(`A node called "${name}" already exists.`);
+  return { errors, values };
+}
+
+function submitForm() {
+  const { errors, values } = validateForm();
+  if (errors.length) {
+    formErrors.textContent = "";
+    for (const msg of errors) {
+      const li = document.createElement("li");
+      li.textContent = msg;
+      formErrors.append(li);
+    }
+    positionForm();
+    return;
+  }
+  const links = editing.links;
+  const node = saveNode(editing.originalName, values, editing.pos);
+  // Dot dropped on empty space: link the new Node to every selected Node (P5-2)
+  if (links) {
+    for (const s of links.names) {
+      if (!NodeData.has(s)) continue;
+      if (links.kind === "parent") linkNodes(node.name, s); else linkNodes(s, node.name);
+    }
+  }
+  closeForm();
+  renderTiles();
+  selectOnly(node.name);
+  refreshText();
+}
+
+// Enter validates, Shift+Enter adds a new line (F5, Q5); Escape cancels
+editForm.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitForm(); }
+  else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeForm(); }
+});
+editForm.addEventListener("submit", e => { e.preventDefault(); submitForm(); });
+document.getElementById("cancelBtn").addEventListener("click", closeForm);
+
+/* Delete: removes the Node and every reference to it; its Children stay,
+   and any left with no Parent become roots (P6-6, Q60, Q61) */
+function deleteNode(name) {
+  NodeData.delete(name);
+  for (const other of NodeData.values()) {
+    other.children = other.children.filter(n => n !== name);
+    other.parents = other.parents.filter(n => n !== name);
+  }
+  if (hovered === name) hovered = null;
+  selectedList = selectedList.filter(n => n !== name);
+}
+document.getElementById("deleteBtn").addEventListener("click", () => {
+  if (!editing || editing.originalName === null) return;
+  deleteNode(editing.originalName);
+  closeForm();
+  hideTooltip();
+  renderTiles();
+  refreshText();
+});
+editForm.addEventListener("dblclick", e => e.stopPropagation());
+
+// Ctrl+Space ticks or unticks "Hide tags" (P6-5, Q59)
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey && !e.altKey && !e.metaKey && e.code === "Space" && !textView.hidden && !e.target.closest("#editForm")) {
+    e.preventDefault();
+    hideTags.checked = !hideTags.checked;
+    hideTags.dispatchEvent(new Event("change"));
+  }
+});
+
+// Escape with no form open deselects all (Q26)
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !tileView.hidden && !editing && e.target !== textField) setSelection([]);
+});
+
+/* =====================================================================
+   Text interface: a small code editor (P2-2 to P2-8, P5-3 to P5-9)
+   ===================================================================== */
+const textView = document.getElementById("textView");
+const textField = document.getElementById("textField");
+const textMessage = document.getElementById("textMessage");
+const gutter = document.getElementById("gutter");
+const highlight = document.getElementById("highlight");
+const hideTags = document.getElementById("hideTags");
+
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/* Live colouring (P5-7): names in the normal colour, tags in blue,
+   descriptions in green */
+function colourLine(line) {
+  const t = line.trimStart();
+  if (t.startsWith("//")) return `<span class="desc">${escapeHtml(line)}</span>`;
+  const at = line.search(/[<\[{]/);
+  if (at === -1) return escapeHtml(line);
+  return escapeHtml(line.slice(0, at)) + `<span class="tag">${escapeHtml(line.slice(at))}</span>`;
+}
+
+function syncScroll() {
+  gutter.scrollTop = textField.scrollTop;
+  highlight.scrollTop = textField.scrollTop;
+  highlight.scrollLeft = textField.scrollLeft;
+}
+
+function updateEditor() {
+  const lines = textField.value.split("\n");
+  let numbers = "";
+  for (let i = 1; i <= lines.length; i++) numbers += i + "\n";
+  gutter.textContent = numbers;
+  // Lines naming a selected Tile, and its description lines, are highlighted (P9-9, Q73)
+  const sel = new Set(selectedList);
+  let inSel = false;
+  const html = lines.map(line => {
+    const t = line.trim();
+    if (t === "") inSel = false;
+    else if (!t.startsWith("//")) inSel = sel.has(t.split(/[<\[{]/)[0].trim());
+    const coloured = colourLine(line);
+    return inSel ? `<span class="sel">${coloured || " "}</span>` : coloured;
+  });
+  // The extra line keeps the coloured copy as tall as the text box's content
+  highlight.innerHTML = html.join("\n") + "\n ";
+  syncScroll();
+}
+textField.addEventListener("input", updateEditor);
+textField.addEventListener("scroll", syncScroll);
+
+/* Replace a range of text in a way the browser's undo can take back */
+function replaceRange(start, end, text) {
+  textField.focus();
+  textField.setSelectionRange(start, end);
+  if (!document.execCommand("insertText", false, text)) textField.setRangeText(text, start, end, "end");
+}
+
+// Start of the first selected line and end of the last selected line
+function selectedLines() {
+  const v = textField.value;
+  const s = textField.selectionStart, e = textField.selectionEnd;
+  const start = v.lastIndexOf("\n", s - 1) + 1;
+  let endPos = (e > s && v[e - 1] === "\n") ? e - 1 : e;
+  let end = v.indexOf("\n", endPos);
+  if (end === -1) end = v.length;
+  return { start, end, s, e };
+}
+
+// Tab: add one level to every selected line, wherever the cursor is
+function indentLines() {
+  const { start, end, s, e } = selectedLines();
+  const block = textField.value.slice(start, end);
+  const lines = block.split("\n");
+  replaceRange(start, end, lines.map(l => "\t" + l).join("\n"));
+  textField.setSelectionRange(s + 1, e + lines.length);
+}
+
+// Shift+Tab: remove one level (a tab, or up to 4 spaces) from every selected line
+function outdentLines() {
+  const { start, end, s, e } = selectedLines();
+  const lines = textField.value.slice(start, end).split("\n");
+  let removedFirst = 0, removedTotal = 0;
+  const out = lines.map((l, idx) => {
+    const m = l.match(/^(\t| {1,4})/);
+    const n = m ? m[1].length : 0;
+    if (idx === 0) removedFirst = n;
+    removedTotal += n;
+    return l.slice(n);
+  });
+  if (!removedTotal) return;
+  replaceRange(start, end, out.join("\n"));
+  textField.setSelectionRange(Math.max(start, s - removedFirst), Math.max(start, e - removedTotal));
+}
+
+// Enter: keep the line's indentation, or none if the line has no text.
+// Shift+Enter: one level deeper than that (P5-4)
+function newLine(deeper) {
+  const v = textField.value;
+  const s = textField.selectionStart;
+  const lineStart = v.lastIndexOf("\n", s - 1) + 1;
+  let lineEnd = v.indexOf("\n", s);
+  if (lineEnd === -1) lineEnd = v.length;
+  const line = v.slice(lineStart, lineEnd);
+  const indent = (line.trim() === "" ? "" : line.match(/^[\t ]*/)[0]) + (deeper ? "\t" : "");
+  replaceRange(s, textField.selectionEnd, "\n" + indent);
+}
+
+textField.addEventListener("keydown", e => {
+  // Ctrl+Enter (Cmd+Enter on a Mac) runs Update (P5-3)
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    runUpdate();
+    return;
+  }
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  if (e.key === "Tab") {
+    e.preventDefault();
+    e.shiftKey ? outdentLines() : indentLines();
+    updateEditor();
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    newLine(e.shiftKey);
+    updateEditor();
+  }
+});
+
+function setText(value) {
+  const scroll = textField.scrollTop;
+  textField.value = value;
+  textField.scrollTop = scroll;
+  updateEditor();
+}
+
+function report(ok, message) {
+  textMessage.className = ok ? "ok" : "error";
+  textMessage.textContent = message;
+}
+
+/* ---- Hide tags (P5-6) ----
+   While ticked the text field shows `shown`; `tags[i]` is what was taken off
+   line i. Putting the tags back compares the current text with `shown` line
+   by line, so lines that are unchanged, or edited in place, get their tags
+   back. Only a line cut and pasted elsewhere loses them. */
+let hidden = null; // { shown: [...], tags: [...] } while Hide tags is ticked
+
+function hideFrom(nodes) {
+  const lines = serialiseLines(nodes, true);
+  hidden = { shown: lines.map(l => l.text), tags: lines.map(l => l.tags) };
+  setText(hidden.shown.join("\n"));
+}
+
+// Pairs of [currentIndex, shownIndex] for lines kept unchanged (longest common subsequence)
+function matchLines(a, b) {
+  const n = a.length, m = b.length;
+  const dp = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const pairs = [];
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) { pairs.push([i, j]); i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
+    else j++;
+  }
+  return pairs;
+}
+
+function restoreTags() {
+  const cur = textField.value.replace(/\r\n?/g, "\n").split("\n");
+  const base = hidden.shown;
+  const withTags = (line, j) => {
+    const tags = hidden.tags[j];
+    const t = line.trim();
+    if (!tags || t === "" || t.startsWith("//") || /[<\[{]/.test(line)) return line;
+    return line.trimEnd() + tags;
+  };
+  // Same lines at the start and end are matched straight away
+  let pre = 0;
+  while (pre < cur.length && pre < base.length && cur[pre] === base[pre]) pre++;
+  let suf = 0;
+  while (suf < cur.length - pre && suf < base.length - pre && cur[cur.length - 1 - suf] === base[base.length - 1 - suf]) suf++;
+  const a = cur.slice(pre, cur.length - suf), b = base.slice(pre, base.length - suf);
+
+  const out = cur.slice(0, pre).map((l, i) => withTags(l, i));
+  // Between matched lines, a changed line takes the tags of the line it replaced
+  const pairs = [...matchLines(a, b), [a.length, b.length]];
+  let ai = 0, bi = 0;
+  for (const [pa, pb] of pairs) {
+    for (let k = 0; ai + k < pa; k++) out.push(bi + k < pb ? withTags(a[ai + k], pre + bi + k) : a[ai + k]);
+    if (pa < a.length) out.push(withTags(a[pa], pre + pb));
+    ai = pa + 1;
+    bi = pb + 1;
+  }
+  for (let k = 0; k < suf; k++) out.push(withTags(cur[cur.length - suf + k], base.length - suf + k));
+  return out.join("\n");
+}
+
+// The full text with every tag, whether or not tags are hidden
+function fullText() {
+  if (textView.hidden) return serialise(); // the text field isn't kept up to date while hidden
+  if (!hidden) return textField.value;
+  const restored = restoreTags();
+  try { return serialise(deserialise(restored, true)); } catch (_) { return restored; }
+}
+
+hideTags.addEventListener("change", () => {
+  if (hideTags.checked) {
+    try {
+      hideFrom(deserialise(textField.value));
+      textMessage.textContent = "";
+    } catch (err) {
+      hideTags.checked = false;
+      report(false, "Can't hide tags until the text reads correctly. " + err.message.split("\n").join("  "));
+    }
+  } else {
+    const text = fullText();
+    hidden = null;
+    setText(text);
+    textMessage.textContent = "";
+  }
+});
+
+/* Update: text to Nodes, draw the Tiles and give new ones a position, then
+   write the Nodes back out to the text field (P3-5). With tags hidden, the
+   tags are put back first and hidden again at the end (P5-6). */
+function runUpdate() {
+  try {
+    const nodes = hidden ? deserialise(restoreTags(), true) : deserialise(textField.value);
+    NodeData.clear(); // Q11: clear and rebuild entirely from the text
+    for (const [k, v] of nodes) NodeData.set(k, v);
+    renderTiles();
+    if (hidden) hideFrom(NodeData); else setText(serialise());
+    report(true, `Updated: ${NodeData.size} node${NodeData.size === 1 ? "" : "s"}.`);
+    rememberText();
+    return true;
+  } catch (err) {
+    report(false, "Nothing was changed. " + err.message.split("\n").join("  "));
+    return false;
+  }
+}
+document.getElementById("updateBtn").addEventListener("click", runUpdate);
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (_) {
+    // Older browsers, or no clipboard permission: copy through a hidden text box
+    const temp = document.createElement("textarea");
+    temp.value = text;
+    temp.style.position = "fixed";
+    temp.style.opacity = "0";
+    document.body.append(temp);
+    temp.select();
+    const ok = document.execCommand("copy");
+    temp.remove();
+    textField.focus();
+    return ok;
+  }
+}
+
+async function copyAndReport(text, what) {
+  const ok = await copyToClipboard(text);
+  report(ok, ok ? `Copied ${what} to clipboard.` : "Couldn't copy; select the text and press Ctrl+C.");
+}
+
+/* Plain text: the full text without the tags on each name line, keeping
+   indentation and descriptions (P4-1, Q31) */
+function plainText() {
+  return fullText().split("\n").map(line => {
+    if (line.trim().startsWith("//")) return line;
+    return line.replace(/\s*[<\[{].*$/, "");
+  }).join("\n");
+}
+
+document.getElementById("copyBtn").addEventListener("click", () => copyAndReport(fullText(), "text"));
+document.getElementById("copyPlainBtn").addEventListener("click", () => copyAndReport(plainText(), "plain text"));
+
+/* ---- Drop a .txt file; Save as .txt (P5-8, P5-9) ----
+   Browsers never tell a page which folder a file came from (C1). Chrome and
+   Edge can keep a handle to the dropped file and open their save dialog in
+   its folder; elsewhere the file goes to the downloads folder. */
+let fileName = "Codependent.txt";
+let fileHandle = null;
+
+const hasFiles = (e) => e.dataTransfer && [...e.dataTransfer.types].includes("Files");
+textView.addEventListener("dragover", e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "copy";
+  textView.classList.add("file-over");
+});
+textView.addEventListener("dragleave", e => {
+  if (!textView.contains(e.relatedTarget)) textView.classList.remove("file-over");
+});
+textView.addEventListener("drop", e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  textView.classList.remove("file-over");
+  const item = e.dataTransfer.items && e.dataTransfer.items[0];
+  // The handle has to be asked for while the drop is happening
+  const handlePromise = item && item.getAsFileSystemHandle ? item.getAsFileSystemHandle().catch(() => null) : Promise.resolve(null);
+  loadFile(e.dataTransfer.files[0], e.shiftKey, handlePromise);
+});
+
+// Replace the text with a .txt file, or add it below (Shift-drop, "Add below")
+function loadFile(file, append, handlePromise) {
+  if (!file || !/\.txt$/i.test(file.name)) { report(false, "Only .txt files can be opened here; nothing was changed."); return; }
+  Promise.all([file.text(), handlePromise || Promise.resolve(null)]).then(([contents, handle]) => {
+    contents = contents.replace(/\r\n?/g, "\n");
+    fileName = file.name;
+    fileHandle = handle;
+    const current = fullText();
+    // Adding puts the file below the existing text, with a blank line between
+    const text = append && current.trim() !== "" ? current.replace(/\n+$/, "") + "\n\n" + contents : contents;
+    if (hidden) {
+      try { hideFrom(deserialise(text)); }
+      catch (_) { hidden = null; hideTags.checked = false; setText(text); }
+    } else {
+      setText(text);
+    }
+    // The Tiles update straight away (P9-3)
+    if (runUpdate()) report(true, `${append ? "Added" : "Loaded"} "${file.name}": ${NodeData.size} node${NodeData.size === 1 ? "" : "s"}.`);
+  }).catch(() => report(false, `Couldn't read "${file.name}".`));
+}
+
+/* Buttons interface menus: each button opens a small list of choices;
+   clicking elsewhere or Escape closes it (P9-2, Q70) */
+const menus = [...document.querySelectorAll("#buttonsView .menu")];
+function closeMenus() { for (const m of menus) m.querySelector(".menuList").hidden = true; }
+for (const m of menus) {
+  const list = m.querySelector(".menuList");
+  m.querySelector(".menuBtn").addEventListener("click", () => {
+    const open = list.hidden;
+    closeMenus();
+    list.hidden = !open;
+  });
+  list.addEventListener("click", e => { if (e.target.closest("button")) closeMenus(); });
+}
+document.addEventListener("pointerdown", e => { if (!e.target.closest("#buttonsView .menu")) closeMenus(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeMenus(); });
+
+/* Import .txt: Add text or Replace text (P9-2), for every device */
+const openInput = document.getElementById("openInput");
+let openAppend = false;
+function pickFile(append) {
+  openAppend = append;
+  openInput.value = "";
+  openInput.click();
+}
+document.getElementById("importReplaceBtn").addEventListener("click", () => pickFile(false));
+document.getElementById("importAddBtn").addEventListener("click", () => pickFile(true));
+openInput.addEventListener("change", () => { if (openInput.files[0]) loadFile(openInput.files[0], openAppend, null); });
+
+/* Touch screens: buttons for keys a phone keyboard doesn't have (P8-7, Q66,
+   P9-1). Pressing them keeps the text field's cursor where it was. */
+// Cursor moves (P9-1): start/end of the line, start/end of the text
+function moveCursor(where) {
+  const v = textField.value, s = textField.selectionStart;
+  let pos;
+  if (where === "lineStart") pos = v.lastIndexOf("\n", s - 1) + 1;
+  else if (where === "lineEnd") { pos = v.indexOf("\n", s); if (pos === -1) pos = v.length; }
+  else pos = where === "textStart" ? 0 : v.length;
+  textField.setSelectionRange(pos, pos);
+  // Bring the cursor into view
+  textField.blur();
+  textField.focus();
+}
+for (const [id, action] of [["indentBtn", indentLines], ["outdentBtn", outdentLines], ["deeperBtn", () => newLine(true)],
+  ["lineStartBtn", () => moveCursor("lineStart")], ["lineEndBtn", () => moveCursor("lineEnd")],
+  ["textStartBtn", () => moveCursor("textStart")], ["textEndBtn", () => moveCursor("textEnd")]]) {
+  const btn = document.getElementById(id);
+  const run = () => { textField.focus(); action(); updateEditor(); };
+  // Act on the press itself: a following click isn't always delivered on touch screens
+  btn.addEventListener("pointerdown", e => { e.preventDefault(); if (e.button === 0) run(); });
+  btn.addEventListener("click", e => { if (e.detail === 0) run(); }); // keyboard (Enter/Space on the button)
+}
+// Files dropped anywhere else shouldn't make the browser leave the page
+window.addEventListener("dragover", e => { if (hasFiles(e)) e.preventDefault(); });
+window.addEventListener("drop", e => { if (hasFiles(e)) e.preventDefault(); });
+
+async function saveText() {
+  const text = fullText();
+  if (window.showSaveFilePicker) {
+    try {
+      const options = { suggestedName: fileName, id: "codependent", types: [{ description: "Text file", accept: { "text/plain": [".txt"] } }] };
+      if (fileHandle) options.startIn = fileHandle;
+      const handle = await window.showSaveFilePicker(options);
+      const writable = await handle.createWritable();
+      await writable.write(text);
+      await writable.close();
+      fileName = handle.name;
+      fileHandle = handle;
+      report(true, `Saved "${handle.name}".`);
+      return;
+    } catch (err) {
+      if (err && err.name === "AbortError") { report(false, "Save cancelled."); return; }
+      // Any other problem: fall back to a normal download
+    }
+  }
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  report(true, `Saved "${fileName}" to your downloads folder.`);
+}
+document.getElementById("saveBtn").addEventListener("click", saveText);
+
+/* Save as .html: a copy of this page that opens with the current text instead
+   of the tutorial (P7-1). Chrome and Edge: a save dialog the first time, then
+   straight to the same file for the rest of the session. Elsewhere: a download. */
+const pageName = decodeURIComponent(location.pathname.split("/").pop() || "") || "Codependent.html";
+let pageHandle = null;
+
+function pageWithText(text) {
+  const open = '<script type="text/plain" id="tutorialText">';
+  const start = PAGE_SOURCE.indexOf(open);
+  const end = PAGE_SOURCE.indexOf("</" + "script>", start);
+  // "</script" inside the text would end the block early
+  const safe = text.replace(/<\/(script)/gi, "<\\/$1");
+  return PAGE_SOURCE.slice(0, start + open.length) + "\n" + safe + "\n" + PAGE_SOURCE.slice(end);
+}
+
+async function saveHtml() {
+  const html = pageWithText(fullText());
+  if (window.showSaveFilePicker) {
+    try {
+      if (!pageHandle) {
+        pageHandle = await window.showSaveFilePicker({ suggestedName: pageName, id: "codependent-html", types: [{ description: "Web page", accept: { "text/html": [".html", ".htm"] } }] });
+      }
+      const writable = await pageHandle.createWritable();
+      await writable.write(html);
+      await writable.close();
+      report(true, `Saved the page as "${pageHandle.name}".`);
+      return;
+    } catch (err) {
+      if (err && err.name === "AbortError") { report(false, "Save cancelled."); return; }
+      pageHandle = null; // try the dialog again next time; download this time
+    }
+  }
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = pageName;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  report(true, `Saved "${pageName}" to your downloads folder; replace the old page with it.`);
+}
+document.getElementById("saveHtmlBtn").addEventListener("click", saveHtml);
+
+/* =====================================================================
+   Theme: Light from 7am to 6pm when the page opens, Dark otherwise (P2-1)
+   ===================================================================== */
+const themeSelect = document.getElementById("themeSelect");
+function setTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  themeSelect.value = theme;
+}
+setTheme("dark"); // always open in Dark (P8-4)
+themeSelect.addEventListener("change", () => setTheme(themeSelect.value));
+
+/* =====================================================================
+   Showing interfaces: "Show Tile" / "Show Text" checkboxes, stacked with a
+   draggable divider when both are shown (P3-1 to P3-4)
+   ===================================================================== */
+const autoPlaceBtn = document.getElementById("autoPlaceBtn");
+const showTile = document.getElementById("showTile");
+const showText = document.getElementById("showText");
+const splitter = document.getElementById("splitter");
+let tileShare = window.innerWidth <= 700 ? 0.5 : 0.6; // share of the height given to the Tile interface when both are shown
+
+// Tile changes update the text field straight away (Q29)
+function refreshText() {
+  rememberText();
+  if (textView.hidden) return;
+  textMessage.textContent = "";
+  if (hidden) hideFrom(NodeData); else setText(serialise());
+}
+
+function applyLayout() {
+  const both = showTile.checked && showText.checked;
+  tileView.hidden = !showTile.checked;
+  textView.hidden = !showText.checked;
+  splitter.hidden = !both;
+  tileView.style.flex = both ? `0 0 ${tileShare * 100}%` : "";
+  autoPlaceBtn.hidden = !showTile.checked;
+
+  // The only interface shown can't be hidden (Q28)
+  showTile.disabled = showTile.checked && !showText.checked;
+  showText.disabled = showText.checked && !showTile.checked;
+  document.getElementById("showTileLabel").classList.toggle("disabled", showTile.disabled);
+  document.getElementById("showTextLabel").classList.toggle("disabled", showText.disabled);
+
+  selectModeBtn.hidden = !showTile.checked;
+  sizeHelp();
+}
+
+/* Help interface: a fixed height that fits both columns, kept the same when
+   only one is shown (P8-6). Help doesn't count for Q28. */
+const helpView = document.getElementById("helpView");
+const showHelp = document.getElementById("showHelp");
+function sizeHelp() {
+  helpView.hidden = !showHelp.checked;
+  if (helpView.hidden) return;
+  const tileHelp = document.getElementById("helpTile"), textHelp = document.getElementById("helpText");
+  tileHelp.hidden = textHelp.hidden = false;
+  helpView.style.height = "";
+  // On a small screen it would crowd out the other interfaces, so it is
+  // capped at a quarter of the window and scrolls
+  helpView.style.height = Math.min(helpView.scrollHeight, Math.round(window.innerHeight * 0.25)) + "px";
+  tileHelp.hidden = !showTile.checked;
+  textHelp.hidden = !showText.checked;
+}
+showHelp.addEventListener("change", () => { sizeHelp(); if (editing) positionForm(); });
+window.addEventListener("resize", sizeHelp);
+
+function onShowChange() {
+  closeForm();
+  hideTooltip();
+  hovered = null;
+  applyLayout();
+  if (showTile.checked) renderTiles();
+  refreshText();
+}
+showTile.addEventListener("change", onShowChange);
+showText.addEventListener("change", onShowChange);
+
+splitter.addEventListener("pointerdown", e => {
+  if (e.button !== 0) return;
+  splitter.setPointerCapture(e.pointerId);
+  const main = splitter.parentElement.getBoundingClientRect();
+  const move = ev => {
+    tileShare = Math.min(0.85, Math.max(0.15, (ev.clientY - main.top) / main.height));
+    tileView.style.flex = `0 0 ${tileShare * 100}%`;
+    if (editing) positionForm();
+  };
+  const up = () => {
+    splitter.removeEventListener("pointermove", move);
+    splitter.removeEventListener("pointerup", up);
+  };
+  splitter.addEventListener("pointermove", move);
+  splitter.addEventListener("pointerup", up);
+});
+
+/* =====================================================================
+   Installable web app (P9-11). Only the web app copy of this page links a
+   manifest; served from a website it works offline and remembers the text
+   between opens. Opened as a file, nothing is kept (Q15).
+   ===================================================================== */
+const isWebApp = !!document.querySelector('link[rel="manifest"]') && location.protocol.startsWith("http");
+const REMEMBER_KEY = "codependent-text";
+let rememberTimer = null;
+function rememberText() {
+  if (!isWebApp) return;
+  clearTimeout(rememberTimer);
+  rememberTimer = setTimeout(() => {
+    try { localStorage.setItem(REMEMBER_KEY, fullText()); } catch (_) { /* storage blocked: nothing is kept */ }
+  }, 400);
+}
+textField.addEventListener("input", rememberText);
+if (isWebApp && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+
+/* The page opens with the remembered text (web app), or else the tutorial or
+   the text saved with "Save as .html", applied as if Update had run
+   (P6-7, P7-1, P9-11) */
+let remembered = null;
+if (isWebApp) { try { remembered = localStorage.getItem(REMEMBER_KEY); } catch (_) { remembered = null; } }
+let startProblem = null;
+try {
+  const tutorial = document.getElementById("tutorialText").textContent.replace(/^\n/, "").replace(/<\\\/(script)/gi, "</$1");
+  for (const [k, v] of deserialise(remembered ?? tutorial)) NodeData.set(k, v);
+} catch (err) { NodeData.clear(); startProblem = err; }
+
+applyView();
+onShowChange();
+// Remembered text that no longer reads correctly is shown as it was, to fix
+if (startProblem && remembered !== null) {
+  setText(remembered);
+  report(false, "Your saved text couldn't be read. " + startProblem.message.split("\n").join("  "));
+}
+</script>
+</body>
+</html>
