@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
+<html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Codependent</title>
@@ -374,8 +373,8 @@
 <body>
 <header>
   <h1>Codependent</h1>
-  <label id="showTileLabel"><input type="checkbox" id="showTile" checked> Show Tile</label>
-  <label id="showTextLabel"><input type="checkbox" id="showText" checked> Show Text</label>
+  <label id="showTileLabel"><input type="checkbox" id="showTile" checked=""> Show Tile</label>
+  <label id="showTextLabel"><input type="checkbox" id="showText" checked=""> Show Text</label>
   <label><input type="checkbox" id="showHelp"> Show Help</label>
   <label>Theme
     <select id="themeSelect">
@@ -393,26 +392,26 @@
     <div id="world">
       <div id="boxes"></div>
       <div id="tiles"></div>
-      <div id="parentDot" class="dot red" hidden title="Drag onto a tile to make it a Parent (or stop it being one), or onto empty space for a new Parent"></div>
-      <div id="childDot" class="dot green" hidden title="Drag onto a tile to make it a Child (or stop it being one), or onto empty space for a new Child"></div>
+      <div id="parentDot" class="dot red" hidden="" title="Drag onto a tile to make it a Parent (or stop it being one), or onto empty space for a new Parent"></div>
+      <div id="childDot" class="dot green" hidden="" title="Drag onto a tile to make it a Child (or stop it being one), or onto empty space for a new Child"></div>
       <svg id="arrows">
         <defs>
           <marker id="headGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z"/>
+            <path d="M0,0 L10,5 L0,10 z"></path>
           </marker>
           <marker id="headRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z"/>
+            <path d="M0,0 L10,5 L0,10 z"></path>
           </marker>
         </defs>
         <g id="arrowLayer"></g>
       </svg>
       <svg id="dragSvg"><line id="dragLine" visibility="hidden"></line></svg>
     </div>
-    <div id="selBox" hidden></div>
+    <div id="selBox" hidden=""></div>
     <div id="emptyHint">Double-click anywhere to create your first task.</div>
 
     <!-- New / Edit form: lives inside the canvas but is not affected by zoom -->
-    <form id="editForm" hidden autocomplete="off">
+    <form id="editForm" hidden="" autocomplete="off">
       <h2 id="editTitle">Edit node</h2>
       <label for="fName">Name</label>
       <input id="fName" type="text">
@@ -440,13 +439,13 @@
   <!-- Text interface -->
   <div id="textView" class="interface">
     <div id="touchBar">
-      <button type="button" id="outdentBtn" title="Outdent (Shift+Tab)">&#x21E4;</button>
-      <button type="button" id="indentBtn" title="Indent (Tab)">&#x21E5;</button>
-      <button type="button" id="deeperBtn" class="spaced" title="New deeper line (Shift+Enter)">&#x21B3;</button>
-      <button type="button" id="lineStartBtn" class="spaced" title="Start of line">&#x21A4;</button>
-      <button type="button" id="lineEndBtn" title="End of line">&#x21A6;</button>
-      <button type="button" id="textStartBtn" title="Start of text">&#x21F1;</button>
-      <button type="button" id="textEndBtn" title="End of text">&#x21F2;</button>
+      <button type="button" id="outdentBtn" title="Outdent (Shift+Tab)">⇤</button>
+      <button type="button" id="indentBtn" title="Indent (Tab)">⇥</button>
+      <button type="button" id="deeperBtn" class="spaced" title="New deeper line (Shift+Enter)">↳</button>
+      <button type="button" id="lineStartBtn" class="spaced" title="Start of line">↤</button>
+      <button type="button" id="lineEndBtn" title="End of line">↦</button>
+      <button type="button" id="textStartBtn" title="Start of text">⇱</button>
+      <button type="button" id="textEndBtn" title="End of text">⇲</button>
     </div>
     <div id="editor">
       <pre id="gutter" aria-hidden="true">1</pre>
@@ -465,27 +464,27 @@
   <!-- Buttons interface: always shown (P9-2) -->
   <div id="buttonsView">
     <div class="menu">
-      <button type="button" class="menuBtn">Save as &#x25BE;</button>
-      <div class="menuList" hidden>
+      <button type="button" class="menuBtn">Save as ▾</button>
+      <div class="menuList" hidden="">
         <button type="button" id="saveBtn">.txt</button>
         <button type="button" id="saveHtmlBtn">.html</button>
       </div>
     </div>
     <div class="menu">
-      <button type="button" class="menuBtn">Copy&#x2026; &#x25BE;</button>
-      <div class="menuList" hidden>
-        <button type="button" id="copyBtn">&#x2026;with tags</button>
-        <button type="button" id="copyPlainBtn">&#x2026;without tags</button>
+      <button type="button" class="menuBtn">Copy… ▾</button>
+      <div class="menuList" hidden="">
+        <button type="button" id="copyBtn">…with tags</button>
+        <button type="button" id="copyPlainBtn">…without tags</button>
       </div>
     </div>
     <div class="menu">
-      <button type="button" class="menuBtn">Import .txt &#x25BE;</button>
-      <div class="menuList" hidden>
+      <button type="button" class="menuBtn">Import .txt ▾</button>
+      <div class="menuList" hidden="">
         <button type="button" id="importAddBtn">Add text</button>
         <button type="button" id="importReplaceBtn">Replace text</button>
       </div>
     </div>
-    <input type="file" id="openInput" accept=".txt,text/plain" hidden>
+    <input type="file" id="openInput" accept=".txt,text/plain" hidden="">
   </div>
 
   <!-- Help interface (P8-6) -->
@@ -518,35 +517,36 @@
   </div>
 </main>
 
-<div id="tooltip" hidden></div>
+<div id="tooltip" hidden=""></div>
 
 <!-- Tutorial text shown when the page opens (P6-7) -->
 <script type="text/plain" id="tutorialText">
-Features to try <!?> <x:60> <y:60> <CC> <SD> {Click and drag on an empty area to move the camera} {Node Selection} {Double click empty space to create a new node} {Double click a node to edit it's properties} {Text Interface}
+Features to try <!?> <x:60> <y:60> <CC> <SD>
 // This node has a description. Descriptions are visible when mousing over a node, In the text view, and if a node has the "Show description" tag.
 // Descriptions can be spaced across multiple lines.
 // You can hide this one by double clicking this node and unchecking "Show description"
-	Click and drag on an empty area to move the camera <x:100> <y:124> [Features to try]
-	Node Selection <!?> <x:100> <y:206> [Features to try] {Click on a node to select it} {Shift + Click on a second node to select that too} {Shift + Click + Drag to select with bounding box} {Drag red dot onto another node to make other node a Parent} {Drag green dot onto empty area to create a new child}
-		Click on a node to select it <x:140> <y:270> [Node Selection]
-		Shift + Click on a second node to select that too <x:140> <y:352> [Node Selection]
-		Shift + Click + Drag to select with bounding box <x:140> <y:434> [Node Selection]
-		Drag red dot onto another node to make other node a Parent <x:140> <y:516> [Node Selection]
-		Drag green dot onto empty area to create a new child <x:140> <y:599> [Node Selection]
-	Double click empty space to create a new node <x:100> <y:681> [Features to try]
-	Double click a node to edit it's properties <x:100> <y:763> [Features to try]
-	Text Interface <!?> <x:100> <y:845> <CC> [Features to try] {Drag a .txt file into the Text Interface to open in Codependent} {Update (Ctrl + Enter) will generate/update the tile view based on the input text}
-		Drag a .txt file into the Text Interface to open in Codependent <x:140> <y:909> [Text Interface] {Shift + Drag a file to add it's contents to existing text}
-			Shift + Drag a file to add it's contents to existing text <x:180> <y:992> [Drag a .txt file into the Text Interface to open in Codependent]
-		Update (Ctrl + Enter) will generate/update the tile view based on the input text <x:140> <y:1074> <SD> [Text Interface]
+	Click and drag on an empty area to move the camera <x:100> <y:200>
+	Node Selection <!?> <x:100> <y:261>
+		Click on a node to select it <x:140> <y:304>
+		Shift + Click on a second node to select that too <x:140> <y:365>
+		Shift + Click + Drag to select with bounding box <x:140> <y:426>
+		Drag red dot onto another node to make other node a Parent <x:140> <y:487>
+		Drag green dot onto empty area to create a new child <x:140> <y:549>
+	Double click empty space to create a new node <x:100> <y:617>
+	Double click a node to edit it's properties <x:100> <y:678>
+	Text Interface <!?> <x:100> <y:739>
+		Drag a .txt file into the Text Interface to open in Codependent <x:140> <y:782>
+			Shift + Drag a file to add it's contents to existing text <x:180> <y:843>
+		Update (Ctrl + Enter) will generate/update the tile view based on the input text <x:140> <y:911> <SD>
 		// Update will automatically generate tags based on the input text. You can hide this text using the "Hide tags" checkbox at the bottom right of the Text Interface
 
-Hotkeys <!?> <x:60> <y:1226> {Ctrl + Enter to update from text} {Shift + Enter will make new indented line} {Tab to increase line indentation} {Shift + Tab to reduce line indentation} {Ctrl + Space to show/hide tags}
-	Ctrl + Enter to update from text <x:100> <y:1290> [Hotkeys]
-	Shift + Enter will make new indented line <x:100> <y:1372> [Hotkeys]
-	Tab to increase line indentation <x:100> <y:1454> [Hotkeys]
-	Shift + Tab to reduce line indentation <x:100> <y:1530> [Hotkeys]
-	Ctrl + Space to show/hide tags <x:100> <y:1612> [Hotkeys]
+Hotkeys <!?> <x:510> <y:60> <CC>
+	Ctrl + Enter to update from text <x:550> <y:103>
+	Shift + Enter will make new indented line <x:550> <y:164>
+	Tab to increase line indentation <x:550> <y:225>
+	Shift + Tab to reduce line indentation <x:550> <y:280>
+	Ctrl + Space to show/hide tags <x:550> <y:341>
+
 </script>
 
 <script>
@@ -2324,6 +2324,4 @@ if (startProblem && remembered !== null) {
   setText(remembered);
   report(false, "Your saved text couldn't be read. " + startProblem.message.split("\n").join("  "));
 }
-</script>
-</body>
-</html>
+</script></body></html>
