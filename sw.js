@@ -1,7 +1,7 @@
 /* Codependent web app: keeps the app's files so it opens without internet.
    Files come from the cache straight away and are refreshed in the
    background, so an updated version shows from the next open. */
-const CACHE = "codependent-v9";
+const CACHE = "codependent-v10";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {

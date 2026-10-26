@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="en"><head>
+<html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Codependent</title>
@@ -30,6 +31,8 @@
     --select: rgba(47,111,222,.28);
     --box: rgba(47,111,222,.07);
     --box-border: rgba(47,111,222,.35);
+    --box-a: .07;
+    --box-border-a: .35;
     color-scheme: light;
   }
   :root[data-theme="dark"] {
@@ -54,6 +57,8 @@
     --select: rgba(91,141,239,.35);
     --box: rgba(91,141,239,.09);
     --box-border: rgba(91,141,239,.4);
+    --box-a: .09;
+    --box-border-a: .4;
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
@@ -115,7 +120,7 @@
   /* ---- Tile interface ---- */
   #tileView {
     overflow: hidden;
-    cursor: grab;
+    cursor: default;
     background-color: var(--bg);
     background-image: radial-gradient(var(--dot) var(--dot-r, 1px), transparent var(--dot-r, 1px));
     background-size: 24px 24px;
@@ -135,6 +140,8 @@
     border-radius: 12px;
     pointer-events: none;
   }
+  /* A container's own colour (P10-5) keeps the blue's see-through amounts */
+  .cbox.coloured { background: rgb(var(--c) / var(--box-a)); border-color: rgb(var(--c) / var(--box-border-a)); }
   #arrows .to-child { stroke: var(--green); }
   #arrows .from-parent { stroke: var(--red); }
   #headGreen path { fill: var(--green); }
@@ -242,6 +249,11 @@
   #editForm .checks label { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--text); font-size: 13px; }
   #editForm .checks label.disabled { opacity: .5; }
   #editForm .checks input { margin: 0; }
+  #editForm .colourRow { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  #editForm .colourRow label { margin: 0; color: var(--text); font-size: 13px; }
+  #editForm .colourRow input { width: 44px; height: 26px; padding: 0 2px; border: 1px solid var(--border); border-radius: 4px; background: var(--panel); cursor: pointer; }
+  #editForm .colourRow button { padding: 2px 8px; font-size: 12px; }
+  #editForm .colourRow .note { font-size: 12px; color: var(--muted); }
   #editForm .errors { color: var(--error); font-size: 12px; margin: 8px 0 0; padding-left: 18px; }
   #editForm .errors:empty { display: none; }
   #editForm .buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
@@ -353,6 +365,7 @@
   /* ---- Touch screens and narrow screens (P8-7) ---- */
   #tileView { touch-action: none; }
   @media (pointer: coarse) {
+    #tileView { cursor: grab; }
     .dot { width: 28px; height: 28px; margin: -14px 0 0 -14px; }
     #touchBar { display: flex; }
   }
@@ -373,8 +386,8 @@
 <body>
 <header>
   <h1>Codependent</h1>
-  <label id="showTileLabel"><input type="checkbox" id="showTile" checked=""> Show Tile</label>
-  <label id="showTextLabel"><input type="checkbox" id="showText" checked=""> Show Text</label>
+  <label id="showTileLabel"><input type="checkbox" id="showTile" checked> Show Tile</label>
+  <label id="showTextLabel"><input type="checkbox" id="showText" checked> Show Text</label>
   <label><input type="checkbox" id="showHelp"> Show Help</label>
   <label>Theme
     <select id="themeSelect">
@@ -383,7 +396,7 @@
     </select>
   </label>
   <button type="button" id="autoPlaceBtn">Auto place</button>
-  <button type="button" id="selectModeBtn" aria-pressed="false" title="While on, taps add or remove tiles and dragging on empty space draws a selection box">Select</button>
+  <button type="button" id="selectModeBtn" aria-pressed="false" hidden title="While on, taps add or remove tiles and dragging on empty space draws a selection box">Select</button>
 </header>
 
 <main>
@@ -392,26 +405,26 @@
     <div id="world">
       <div id="boxes"></div>
       <div id="tiles"></div>
-      <div id="parentDot" class="dot red" hidden="" title="Drag onto a tile to make it a Parent (or stop it being one), or onto empty space for a new Parent"></div>
-      <div id="childDot" class="dot green" hidden="" title="Drag onto a tile to make it a Child (or stop it being one), or onto empty space for a new Child"></div>
+      <div id="parentDot" class="dot red" hidden title="Drag onto a tile to make it a Parent (or stop it being one), or onto empty space for a new Parent"></div>
+      <div id="childDot" class="dot green" hidden title="Drag onto a tile to make it a Child (or stop it being one), or onto empty space for a new Child"></div>
       <svg id="arrows">
         <defs>
           <marker id="headGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z"></path>
+            <path d="M0,0 L10,5 L0,10 z"/>
           </marker>
           <marker id="headRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z"></path>
+            <path d="M0,0 L10,5 L0,10 z"/>
           </marker>
         </defs>
         <g id="arrowLayer"></g>
       </svg>
       <svg id="dragSvg"><line id="dragLine" visibility="hidden"></line></svg>
     </div>
-    <div id="selBox" hidden=""></div>
+    <div id="selBox" hidden></div>
     <div id="emptyHint">Double-click anywhere to create your first task.</div>
 
     <!-- New / Edit form: lives inside the canvas but is not affected by zoom -->
-    <form id="editForm" hidden="" autocomplete="off">
+    <form id="editForm" hidden autocomplete="off">
       <h2 id="editTitle">Edit node</h2>
       <label for="fName">Name</label>
       <input id="fName" type="text">
@@ -424,6 +437,12 @@
         <label><input type="checkbox" id="fContainable"> Containable</label>
         <label><input type="checkbox" id="fHideChildren"> Hide children</label>
         <label><input type="checkbox" id="fShowDescription"> Show description</label>
+      </div>
+      <div class="colourRow">
+        <label for="fColour">Colour</label>
+        <input type="color" id="fColour" title="Container colour (P10-5)">
+        <button type="button" id="fColourDefault">Default</button>
+        <span class="note" id="fColourNote"></span>
       </div>
       <ul class="errors" id="formErrors"></ul>
       <div class="buttons">
@@ -439,13 +458,13 @@
   <!-- Text interface -->
   <div id="textView" class="interface">
     <div id="touchBar">
-      <button type="button" id="outdentBtn" title="Outdent (Shift+Tab)">⇤</button>
-      <button type="button" id="indentBtn" title="Indent (Tab)">⇥</button>
-      <button type="button" id="deeperBtn" class="spaced" title="New deeper line (Shift+Enter)">↳</button>
-      <button type="button" id="lineStartBtn" class="spaced" title="Start of line">↤</button>
-      <button type="button" id="lineEndBtn" title="End of line">↦</button>
-      <button type="button" id="textStartBtn" title="Start of text">⇱</button>
-      <button type="button" id="textEndBtn" title="End of text">⇲</button>
+      <button type="button" id="outdentBtn" title="Outdent (Shift+Tab)">&#x21E4;</button>
+      <button type="button" id="indentBtn" title="Indent (Tab)">&#x21E5;</button>
+      <button type="button" id="deeperBtn" class="spaced" title="New deeper line (Shift+Enter)">&#x21B3;</button>
+      <button type="button" id="lineStartBtn" class="spaced" title="Start of line">&#x21A4;</button>
+      <button type="button" id="lineEndBtn" title="End of line">&#x21A6;</button>
+      <button type="button" id="textStartBtn" title="Start of text">&#x21F1;</button>
+      <button type="button" id="textEndBtn" title="End of text">&#x21F2;</button>
     </div>
     <div id="editor">
       <pre id="gutter" aria-hidden="true">1</pre>
@@ -464,27 +483,27 @@
   <!-- Buttons interface: always shown (P9-2) -->
   <div id="buttonsView">
     <div class="menu">
-      <button type="button" class="menuBtn">Save as ▾</button>
-      <div class="menuList" hidden="">
+      <button type="button" class="menuBtn">Save as &#x25BE;</button>
+      <div class="menuList" hidden>
         <button type="button" id="saveBtn">.txt</button>
         <button type="button" id="saveHtmlBtn">.html</button>
       </div>
     </div>
     <div class="menu">
-      <button type="button" class="menuBtn">Copy… ▾</button>
-      <div class="menuList" hidden="">
-        <button type="button" id="copyBtn">…with tags</button>
-        <button type="button" id="copyPlainBtn">…without tags</button>
+      <button type="button" class="menuBtn">Copy&#x2026; &#x25BE;</button>
+      <div class="menuList" hidden>
+        <button type="button" id="copyBtn">&#x2026;with tags</button>
+        <button type="button" id="copyPlainBtn">&#x2026;without tags</button>
       </div>
     </div>
     <div class="menu">
-      <button type="button" class="menuBtn">Import .txt ▾</button>
-      <div class="menuList" hidden="">
+      <button type="button" class="menuBtn">Import .txt &#x25BE;</button>
+      <div class="menuList" hidden>
         <button type="button" id="importAddBtn">Add text</button>
         <button type="button" id="importReplaceBtn">Replace text</button>
       </div>
     </div>
-    <input type="file" id="openInput" accept=".txt,text/plain" hidden="">
+    <input type="file" id="openInput" accept=".txt,text/plain" hidden>
   </div>
 
   <!-- Help interface (P8-6) -->
@@ -492,14 +511,15 @@
     <section id="helpTile">
       <h3>Tile interface</h3>
       <ul>
-        <li>Drag empty space to move around · scroll wheel or pinch to zoom</li>
-        <li>Touch screens: tap a tile to select it, then drag it to move it; dragging an unselected tile moves the view</li>
+        <li>Middle-click and drag, or <kbd>Shift</kbd>+drag empty space, to move around · scroll wheel or pinch to zoom</li>
+        <li>Drag on empty space for a selection box · <kbd>Ctrl</kbd>+drag adds to the selection · <kbd>Esc</kbd> clears</li>
+        <li>Touch screens: drag empty space to move around; tap a tile to select it, then drag it to move it; turn on Select to select several or draw a box</li>
         <li>Double-click (double-tap) empty space for a new task, or a tile to edit it</li>
-        <li>Click a tile to select it · <kbd>Shift</kbd>+click, or turn on Select, to select several</li>
-        <li><kbd>Shift</kbd>+drag on empty space (or drag with Select on) for a selection box · <kbd>Esc</kbd> clears</li>
+        <li>Click a tile to select it · <kbd>Shift</kbd>+click to select several</li>
         <li>Drag the red dot onto a tile to make it a Parent, the green dot to make it a Child; again to unlink</li>
         <li>Drop a dot on empty space for a new linked task · hover or press and hold a tile for its description</li>
-        <li>Auto place lays out every tile, or just the selected ones · Delete in the edit form removes a task</li>
+        <li>Auto place lays out every tile, or just the selected ones · <kbd>Del</kbd> deletes the selected tiles, Delete in the edit form deletes one</li>
+        <li>Containers can have their own colour, chosen in the edit form</li>
       </ul>
     </section>
     <section id="helpText">
@@ -511,42 +531,41 @@
         <li><kbd>Ctrl</kbd>+<kbd>Space</kbd> or Hide tags hides the &lt;…&gt; and […] tags</li>
         <li>Drop a .txt file to open it (<kbd>Shift</kbd> to add it below), or use Import .txt</li>
         <li>Save as .txt saves the text · Save as .html saves a copy of this page that opens with your text · Copy… with or without tags</li>
-        <li>Descriptions are lines starting with <kbd>//</kbd> under a task</li>
+        <li>Descriptions are lines starting with <kbd>//</kbd> under a task · they show on the tile unless the task has &lt;!SD&gt; · &lt;Col E0533D&gt; is a container's colour</li>
       </ul>
     </section>
   </div>
 </main>
 
-<div id="tooltip" hidden=""></div>
+<div id="tooltip" hidden></div>
 
 <!-- Tutorial text shown when the page opens (P6-7) -->
 <script type="text/plain" id="tutorialText">
-Features to try <!?> <x:60> <y:60> <CC> <SD>
+Features to try <!?> <x:60> <y:60> <CC> {Click and drag on an empty area to move the camera} {Node Selection} {Double click empty space to create a new node} {Double click a node to edit it's properties} {Text Interface}
 // This node has a description. Descriptions are visible when mousing over a node, In the text view, and if a node has the "Show description" tag.
 // Descriptions can be spaced across multiple lines.
 // You can hide this one by double clicking this node and unchecking "Show description"
-	Click and drag on an empty area to move the camera <x:100> <y:200>
-	Node Selection <!?> <x:100> <y:261>
-		Click on a node to select it <x:140> <y:304>
-		Shift + Click on a second node to select that too <x:140> <y:365>
-		Shift + Click + Drag to select with bounding box <x:140> <y:426>
-		Drag red dot onto another node to make other node a Parent <x:140> <y:487>
-		Drag green dot onto empty area to create a new child <x:140> <y:549>
-	Double click empty space to create a new node <x:100> <y:617>
-	Double click a node to edit it's properties <x:100> <y:678>
-	Text Interface <!?> <x:100> <y:739>
-		Drag a .txt file into the Text Interface to open in Codependent <x:140> <y:782>
-			Shift + Drag a file to add it's contents to existing text <x:180> <y:843>
-		Update (Ctrl + Enter) will generate/update the tile view based on the input text <x:140> <y:911> <SD>
+	Click and drag on an empty area to move the camera <x:100> <y:124> [Features to try]
+	Node Selection <!?> <x:100> <y:206> [Features to try] {Click on a node to select it} {Shift + Click on a second node to select that too} {Shift + Click + Drag to select with bounding box} {Drag red dot onto another node to make other node a Parent} {Drag green dot onto empty area to create a new child}
+		Click on a node to select it <x:140> <y:270> [Node Selection]
+		Shift + Click on a second node to select that too <x:140> <y:352> [Node Selection]
+		Shift + Click + Drag to select with bounding box <x:140> <y:434> [Node Selection]
+		Drag red dot onto another node to make other node a Parent <x:140> <y:516> [Node Selection]
+		Drag green dot onto empty area to create a new child <x:140> <y:599> [Node Selection]
+	Double click empty space to create a new node <x:100> <y:681> [Features to try]
+	Double click a node to edit it's properties <x:100> <y:763> [Features to try]
+	Text Interface <!?> <x:100> <y:845> <CC> [Features to try] {Drag a .txt file into the Text Interface to open in Codependent} {Update (Ctrl + Enter) will generate/update the tile view based on the input text}
+		Drag a .txt file into the Text Interface to open in Codependent <x:140> <y:909> [Text Interface] {Shift + Drag a file to add it's contents to existing text}
+			Shift + Drag a file to add it's contents to existing text <x:180> <y:992> [Drag a .txt file into the Text Interface to open in Codependent]
+		Update (Ctrl + Enter) will generate/update the tile view based on the input text <x:140> <y:1074> [Text Interface]
 		// Update will automatically generate tags based on the input text. You can hide this text using the "Hide tags" checkbox at the bottom right of the Text Interface
 
-Hotkeys <!?> <x:510> <y:60> <CC>
-	Ctrl + Enter to update from text <x:550> <y:103>
-	Shift + Enter will make new indented line <x:550> <y:164>
-	Tab to increase line indentation <x:550> <y:225>
-	Shift + Tab to reduce line indentation <x:550> <y:280>
-	Ctrl + Space to show/hide tags <x:550> <y:341>
-
+Hotkeys <!?> <x:60> <y:1226> {Ctrl + Enter to update from text} {Shift + Enter will make new indented line} {Tab to increase line indentation} {Shift + Tab to reduce line indentation} {Ctrl + Space to show/hide tags}
+	Ctrl + Enter to update from text <x:100> <y:1290> [Hotkeys]
+	Shift + Enter will make new indented line <x:100> <y:1372> [Hotkeys]
+	Tab to increase line indentation <x:100> <y:1454> [Hotkeys]
+	Shift + Tab to reduce line indentation <x:100> <y:1530> [Hotkeys]
+	Ctrl + Space to show/hide tags <x:100> <y:1612> [Hotkeys]
 </script>
 
 <script>
@@ -572,7 +591,7 @@ function makeNode(name) {
     name, description: "", x: null, y: null,
     isTickable: true, isTicked: false,
     isContainer: false, isContainable: true, containedTag: false,
-    hiddenTag: null, hideChildren: false, showDescription: false,
+    hiddenTag: null, hideChildren: false, showDescription: true, colour: null,
     parents: [], children: []
   };
 }
@@ -650,7 +669,8 @@ function tagText(node, nodes, withLinks, indentParent) {
   if (!node.isContainable) t.push("<!C>");
   if (node.hideChildren) t.push("<HC>");
   if (node.hiddenTag !== null && node.hiddenTag !== hiddenByDefault(node, nodes)) t.push(node.hiddenTag ? "<H>" : "<!H>");
-  if (node.showDescription) t.push("<SD>");
+  if (!node.showDescription) t.push("<!SD>"); // descriptions show unless hidden (P10-3)
+  if (node.colour) t.push(`<Col ${node.colour}>`); // container colour (P10-5)
   if (withLinks) {
     for (const p of node.parents) if (p !== indentParent) t.push(`[${p}]`);
   }
@@ -702,7 +722,8 @@ const TAGS = {
   "HC": (t) => { t.hideChildren = true; },
   "H":  (t) => { t.hiddenTag = true; },
   "!H": (t) => { t.hiddenTag = false; },
-  "SD": (t) => { t.showDescription = true; },
+  "SD": () => {}, // obsolete since v10: descriptions show by default (P10-3)
+  "!SD": (t) => { t.showDescription = false; },
 };
 
 /* Returns a new Map of Nodes, or throws an Error listing what is wrong.
@@ -738,7 +759,15 @@ function deserialise(text, ignoreLists = false) {
       if (m[1] !== undefined) {
         const tag = m[1].trim();
         const pos = tag.match(/^([xy])\s*:\s*(-?\d+(?:\.\d+)?)$/i);
+        const col = tag.match(/^col\b\s*#?(.*)$/i);
         if (pos) occ.tags[pos[1].toLowerCase()] = Math.round(Number(pos[2]));
+        else if (col) {
+          // <Col HEX>: 6 or 3 hex digits, # optional (P10-5, Q80)
+          let hex = col[1].toUpperCase();
+          if (/^[0-9A-F]{3}$/.test(hex)) hex = hex.replace(/./g, "$&$&");
+          if (!/^[0-9A-F]{6}$/.test(hex)) { errors.push(`Line ${lineNo}: <${tag}> needs a colour like <Col E0533D>.`); continue; }
+          occ.tags.colour = hex;
+        }
         else if (TAGS[tag.toUpperCase()]) TAGS[tag.toUpperCase()](occ.tags);
         else { errors.push(`Line ${lineNo}: unknown tag <${tag}>.`); continue; }
         occ.detailed = true;
@@ -844,7 +873,7 @@ function saveNode(originalName, values, pos) {
     node = NodeData.get(originalName);
     if (values.name !== originalName) renameNode(originalName, values.name);
   }
-  for (const key of ["description", "isTickable", "isTicked", "isContainer", "isContainable", "hideChildren", "showDescription"]) {
+  for (const key of ["description", "isTickable", "isTicked", "isContainer", "isContainable", "hideChildren", "showDescription", "colour"]) {
     node[key] = values[key];
   }
   return node;
@@ -1263,13 +1292,17 @@ function drawBoxes() {
   for (const node of NodeData.values()) {
     if (!node.isContainer || !tileEls.has(node.name)) continue;
     const b = boxOf(node.name, new Set());
-    if (b) boxes.push(b);
+    if (b) boxes.push({ ...b, colour: node.colour });
   }
   boxes.sort((a, b) => b.w * b.h - a.w * a.h);
   for (const b of boxes) {
     const el = document.createElement("div");
     el.className = "cbox";
     Object.assign(el.style, { left: b.x + "px", top: b.y + "px", width: b.w + "px", height: b.h + "px" });
+    if (b.colour) {
+      el.classList.add("coloured");
+      el.style.setProperty("--c", [0, 2, 4].map(i => parseInt(b.colour.slice(i, i + 2), 16)).join(" "));
+    }
     boxesEl.append(el);
   }
 }
@@ -1324,14 +1357,26 @@ function toWorld(clientX, clientY) {
   return { x: (clientX - r.left - view.panX) / view.zoom, y: (clientY - r.top - view.panY) / view.zoom };
 }
 
-/* Empty space: drag pans the view (F16) and a click deselects all;
-   Shift + drag draws a selection box instead (P5-5, Q44) */
+/* Empty space. Mouse and pen (P10-2, Q76, Q77): drag draws a selection box
+   (Ctrl + drag adds to the selection), Shift + drag pans, middle-drag pans
+   from anywhere, and a click deselects all. Touch: drag pans the view (F16)
+   and Shift + drag, or a drag with Select on, draws a box (P5-5, Q44) */
 let pan = null;
 let boxSel = null;
 tileView.addEventListener("pointerdown", e => {
-  if (e.button !== 0 || e.target.closest("#editForm, .dot")) return;
+  const touch = e.pointerType === "touch";
+  if (e.target.closest("#editForm")) return;
+  if (e.button === 1 && !touch) {
+    e.preventDefault();
+    tileView.setPointerCapture(e.pointerId);
+    hideTooltip();
+    pan = { startX: e.clientX, startY: e.clientY, panX: view.panX, panY: view.panY, moved: false, noTap: true };
+    tileView.classList.add("panning");
+    return;
+  }
+  if (e.button !== 0 || e.target.closest(".dot")) return;
   const tile = e.target.closest(".tile"); // only reaches here for a touch on an unselected Tile (P9-10)
-  if (tile && e.pointerType !== "touch") return;
+  if (tile && !touch) return;
   tileView.setPointerCapture(e.pointerId);
   if (tile) {
     const name = tile.dataset.name;
@@ -1340,9 +1385,10 @@ tileView.addEventListener("pointerdown", e => {
     pan.holdTimer = setTimeout(() => { if (pan && pan.tapTile === name && !pan.moved) showTooltip(NodeData.get(name), e); }, 500);
     return;
   }
-  if (e.shiftKey || selectMode) {
+  if (touch ? e.shiftKey || selectMode : !e.shiftKey) {
     const r = tileView.getBoundingClientRect();
-    boxSel = { x0: e.clientX - r.left, y0: e.clientY - r.top, base: [...selectedList] };
+    const adding = touch || e.ctrlKey || e.metaKey;
+    boxSel = { x0: e.clientX - r.left, y0: e.clientY - r.top, base: adding ? [...selectedList] : [], moved: false, clearOnClick: !adding };
     Object.assign(selBox.style, { left: boxSel.x0 + "px", top: boxSel.y0 + "px", width: "0px", height: "0px" });
     selBox.hidden = false;
     return;
@@ -1356,6 +1402,8 @@ tileView.addEventListener("pointermove", e => {
     const x1 = e.clientX - r.left, y1 = e.clientY - r.top;
     const left = Math.min(boxSel.x0, x1), top = Math.min(boxSel.y0, y1);
     const right = Math.max(boxSel.x0, x1), bottom = Math.max(boxSel.y0, y1);
+    if (!boxSel.moved && right - left + bottom - top <= 3) return;
+    boxSel.moved = true;
     Object.assign(selBox.style, { left: left + "px", top: top + "px", width: (right - left) + "px", height: (bottom - top) + "px" });
     // Every Tile the box touches is added
     const touched = [];
@@ -1375,14 +1423,21 @@ tileView.addEventListener("pointermove", e => {
   if (editing) positionForm();
 });
 const endPan = (apply) => {
-  if (boxSel) { boxSel = null; selBox.hidden = true; }
+  if (boxSel) {
+    if (apply && !boxSel.moved && boxSel.clearOnClick) selectOnly(null); // a click on empty space deselects all
+    boxSel = null;
+    selBox.hidden = true;
+  }
   if (pan) clearTimeout(pan.holdTimer);
-  if (pan && !pan.moved && apply) selectOnly(pan.tapTile || null); // a tap on a Tile selects it
+  if (pan && !pan.moved && !pan.noTap && apply) selectOnly(pan.tapTile || null); // a tap on a Tile selects it
   pan = null;
   tileView.classList.remove("panning");
 };
 tileView.addEventListener("pointerup", () => endPan(true));
 tileView.addEventListener("pointercancel", () => endPan(false));
+// The middle button would otherwise start the browser's scrolling or paste
+tileView.addEventListener("mousedown", e => { if (e.button === 1) e.preventDefault(); });
+tileView.addEventListener("auxclick", e => { if (e.button === 1) e.preventDefault(); });
 
 /* Touch (P8-7): two fingers pinch to zoom around the point between them, a
    double tap acts as a double-click, and any touch closes a held tooltip */
@@ -1599,6 +1654,19 @@ const fChecks = {
 };
 let editing = null; // { originalName, pos, links: { kind, names } for a dot dropped on empty space }
 
+/* Colour (P10-5, Q82): the box shows the current blue until a colour is
+   picked; Default goes back to the blue and writes no tag */
+const fColour = document.getElementById("fColour");
+const fColourNote = document.getElementById("fColourNote");
+let colourChosen = false;
+function setFormColour(hex) {
+  colourChosen = !!hex;
+  fColour.value = "#" + (hex || (document.documentElement.dataset.theme === "dark" ? "5B8DEF" : "2F6FDE")).toLowerCase();
+  fColourNote.textContent = colourChosen ? "" : "(default)";
+}
+fColour.addEventListener("input", () => { colourChosen = true; fColourNote.textContent = ""; });
+document.getElementById("fColourDefault").addEventListener("click", () => setFormColour(null));
+
 // Ticked only means something for a tickable Node (Q40)
 function syncTickedBox() {
   fChecks.isTicked.disabled = !fChecks.isTickable.checked;
@@ -1615,6 +1683,7 @@ function openForm(name, pos, links) {
   fName.value = node.name;
   fDescription.value = node.description;
   for (const [key, box] of Object.entries(fChecks)) box.checked = node[key];
+  setFormColour(node.colour);
   syncTickedBox();
   if (name !== null) selectOnly(name);
   document.getElementById("deleteBtn").hidden = name === null; // Edit form only (P6-6)
@@ -1658,6 +1727,7 @@ function validateForm() {
   const name = fName.value.trim();
   const values = { name, description: fDescription.value.replace(/\r\n?/g, "\n").replace(/\s+$/, "") };
   for (const [key, box] of Object.entries(fChecks)) values[key] = box.checked;
+  values.colour = colourChosen ? fColour.value.slice(1).toUpperCase() : null;
   const p = nameProblem(name);
   if (p) errors.push(p);
   if (name && name !== editing.originalName && NodeData.has(name)) errors.push(`A node called "${name}" already exists.`);
@@ -1719,6 +1789,17 @@ document.getElementById("deleteBtn").addEventListener("click", () => {
   refreshText();
 });
 editForm.addEventListener("dblclick", e => e.stopPropagation());
+
+// Del deletes every selected Node, unless typing in a text box (P10-4, Q79)
+document.addEventListener("keydown", e => {
+  if (e.key !== "Delete" || editing || tileView.hidden || !selectedList.length) return;
+  if (e.target.closest("input, textarea, select, [contenteditable]")) return;
+  e.preventDefault();
+  for (const name of [...selectedList]) deleteNode(name);
+  hideTooltip();
+  renderTiles();
+  refreshText();
+});
 
 // Ctrl+Space ticks or unticks "Hide tags" (P6-5, Q59)
 document.addEventListener("keydown", e => {
@@ -2237,7 +2318,7 @@ function applyLayout() {
   document.getElementById("showTileLabel").classList.toggle("disabled", showTile.disabled);
   document.getElementById("showTextLabel").classList.toggle("disabled", showText.disabled);
 
-  selectModeBtn.hidden = !showTile.checked;
+  selectModeBtn.hidden = !coarse || !showTile.checked; // touch screens only (P10-2)
   sizeHelp();
 }
 
@@ -2289,28 +2370,36 @@ splitter.addEventListener("pointerdown", e => {
 });
 
 /* =====================================================================
-   Installable web app (P9-11). Only the web app copy of this page links a
-   manifest; served from a website it works offline and remembers the text
-   between opens. Opened as a file, nothing is kept (Q15).
+   Browser memory (P10-1): every copy of the page remembers the text, as
+   typed, in this browser. The key includes the page's own location, so each
+   copy (Q74) remembers its own text. The installable web app (P9-11) also
+   works offline; it is the only copy that links a manifest.
    ===================================================================== */
 const isWebApp = !!document.querySelector('link[rel="manifest"]') && location.protocol.startsWith("http");
-const REMEMBER_KEY = "codependent-text";
+const REMEMBER_KEY = "codependent-text:" + location.pathname.replace(/index\.html$/, "");
+const V9_KEY = "codependent-text"; // what the v9 web app used
 let rememberTimer = null;
+function saveRemembered() {
+  rememberTimer = null;
+  try { localStorage.setItem(REMEMBER_KEY, fullText()); } catch (_) { /* storage blocked: nothing is kept */ }
+}
 function rememberText() {
-  if (!isWebApp) return;
   clearTimeout(rememberTimer);
-  rememberTimer = setTimeout(() => {
-    try { localStorage.setItem(REMEMBER_KEY, fullText()); } catch (_) { /* storage blocked: nothing is kept */ }
-  }, 400);
+  rememberTimer = setTimeout(saveRemembered, 400);
 }
 textField.addEventListener("input", rememberText);
+// Closing the page straight after a change still keeps it
+window.addEventListener("pagehide", () => { if (rememberTimer) { clearTimeout(rememberTimer); saveRemembered(); } });
 if (isWebApp && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 
-/* The page opens with the remembered text (web app), or else the tutorial or
-   the text saved with "Save as .html", applied as if Update had run
-   (P6-7, P7-1, P9-11) */
+/* The page opens with the remembered text, or else the tutorial or the text
+   saved with "Save as .html", applied as if Update had run
+   (P6-7, P7-1, P9-11, P10-1) */
 let remembered = null;
-if (isWebApp) { try { remembered = localStorage.getItem(REMEMBER_KEY); } catch (_) { remembered = null; } }
+try {
+  remembered = localStorage.getItem(REMEMBER_KEY);
+  if (remembered === null && isWebApp) remembered = localStorage.getItem(V9_KEY);
+} catch (_) { remembered = null; }
 let startProblem = null;
 try {
   const tutorial = document.getElementById("tutorialText").textContent.replace(/^\n/, "").replace(/<\\\/(script)/gi, "</$1");
@@ -2324,4 +2413,6 @@ if (startProblem && remembered !== null) {
   setText(remembered);
   report(false, "Your saved text couldn't be read. " + startProblem.message.split("\n").join("  "));
 }
-</script></body></html>
+</script>
+</body>
+</html>

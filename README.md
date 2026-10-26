@@ -1,6 +1,6 @@
-# Codependent web app (v9)
+# Codependent web app (v10)
 
-This folder is Codependent as an installable web app. `index.html` is the same page as `Codependent-V9.html`, plus the links that make it installable.
+This folder is Codependent as an installable web app. `index.html` is the same page as `Codependent-V10.html`, plus the links that make it installable.
 
 | File | What it does |
 |------|--------------|
